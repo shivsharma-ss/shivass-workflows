@@ -1,0 +1,67 @@
+.venv/
+env/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Byte-compiled / optimized / DLL files
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+pip-wheel-metadata/
+
+# dotenv files (keep example tracked)
+.env
+.env.*
+!.env.example
+
+# Google service account and credential files
+service-account.json
+OAuth-client-details.json
+dbqCtLvSrnf9BMeD-CV_JD_Alignment_Workflow_with_AI_Agents.json
+.headers
+.mode
+FROM
+LIMIT
+ORDER
+credentials.json
+client_secret*.json
+*_key.json
+*credentials*.json
+
+# Database files
+data/
+*.db
+*.sqlite3
+*.sqlite
+
+# Test and coverage
+.pytest_cache/
+.cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Logs
+*.log
+
+# IDE / editor
+.vscode/
+.idea/
+*.sublime-workspace
+
+# macOS
+.DS_Store
+
+# Python environment managers
+.python-version
+
+# Other common secrets
+secrets.json
+*.pem
+*.key

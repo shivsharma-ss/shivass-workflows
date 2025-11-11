@@ -1,0 +1,175 @@
+{% macro list_section(title, items) -%}
+  <h3 style="margin:16px 0 6px 0;font-size:16px;">{{ title }}</h3>
+  {% if items %}
+    <ul style="margin:0 0 12px 18px;padding:0;">
+      {% for item in items %}
+        <li style="margin-bottom:4px;">{{ item }}</li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p style="margin:0 0 12px 0;color:#666;">None</p>
+  {% endif %}
+{%- endmacro %}
+
+<!doctype html>
+<html>
+  <body style="font-family:Arial,Helvetica,sans-serif;color:#111;background:#f5f7fb;margin:0;padding:0;">
+    <div style="max-width:760px;margin:0 auto;padding:24px;">
+      <div style="background:#fff;border:1px solid #e3e8f0;border-radius:12px;padding:28px;">
+        <h1 style="margin:0 0 12px 0;font-size:24px;">CV Analysis Ready</h1>
+        <p style="margin:0 0 6px 0;font-size:14px;color:#555;">
+          Analysis ID: <strong>{{ analysisId }}</strong>
+        </p>
+        {% if jobTitle or companyName %}
+        <p style="margin:0 0 6px 0;font-size:14px;color:#555;">
+          Role: <strong>{{ jobTitle or "Unknown role" }}</strong>
+          {% if companyName %} at <strong>{{ companyName }}</strong>{% endif %}
+        </p>
+        {% endif %}
+        <p style="margin:0 0 16px 0;font-size:14px;color:#555;">
+          Recipient: <strong>{{ userEmail }}</strong>
+        </p>
+
+        <h2 style="margin:16px 0 8px 0;font-size:18px;">Score Summary</h2>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:16px;">
+          <tr>
+            <th style="text-align:left;padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;">Overall</th>
+            <th style="text-align:left;padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;">Hard Skills</th>
+            <th style="text-align:left;padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;">Soft Skills</th>
+            <th style="text-align:left;padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;">Critical Req</th>
+          </tr>
+          <tr>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ scores.overallScore }}%</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ scores.hardSkillsScore }}%</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ scores.softSkillsScore }}%</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ scores.criticalReqScore }}%</td>
+          </tr>
+        </table>
+
+        {% if scoreModel %}
+          {{ list_section("Matched Hard Skills", scoreModel.matchedHardSkills) }}
+          {{ list_section("Missing Hard Skills", scoreModel.missingHardSkills) }}
+          {{ list_section("Matched Soft Skills", scoreModel.matchedSoftSkills) }}
+          {{ list_section("Missing Soft Skills", scoreModel.missingSoftSkills) }}
+          {{ list_section("Strengths", scoreModel.strengths) }}
+          {{ list_section("Weaknesses", scoreModel.weaknesses) }}
+        {% endif %}
+
+        {% if improvements %}
+        <h2 style="margin:24px 0 8px 0;font-size:18px;">Recommended Edits</h2>
+        {% if improvements.reformulations %}
+        <h3 style="margin:12px 0 6px 0;font-size:16px;">Reformulations</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Original</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Improved</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Reason</th>
+          </tr>
+          {% for row in improvements.reformulations %}
+          <tr>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.original }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.improved }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if improvements.removals %}
+        <h3 style="margin:12px 0 6px 0;font-size:16px;">Removals</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Text</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Reason</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Alternative</th>
+          </tr>
+          {% for row in improvements.removals %}
+          <tr>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.text }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.reason }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.alternative }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+
+        {% if improvements.additions %}
+        <h3 style="margin:12px 0 6px 0;font-size:16px;">Additions</h3>
+        <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:12px;">
+          <tr>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Section</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Content</th>
+            <th style="padding:8px;border:1px solid #e3e8f0;background:#f0f4fa;text-align:left;">Reason</th>
+          </tr>
+          {% for row in improvements.additions %}
+          <tr>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.section }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.content }}</td>
+            <td style="padding:8px;border:1px solid #e3e8f0;">{{ row.reason }}</td>
+          </tr>
+          {% endfor %}
+        </table>
+        {% endif %}
+        {% endif %}
+
+        <h2 style="margin:24px 0 8px 0;font-size:18px;">Tutorial & Project Ideas</h2>
+        {% if projectSuggestions %}
+          {% for suggestion in projectSuggestions %}
+            <div style="border:1px solid #e3e8f0;border-radius:8px;padding:12px;margin-bottom:12px;">
+              <h3 style="margin:0 0 6px 0;font-size:16px;">Skill: {{ suggestion.skill }}</h3>
+              {% if suggestion.projects %}
+                <ol style="margin:0 0 0 18px;padding:0;">
+                  {% for project in suggestion.projects %}
+                  <li style="margin-bottom:8px;">
+                    <a href="{{ project.tutorialUrl }}" style="text-decoration:none;color:#0b5cab;">
+                      {{ project.tutorialTitle }}
+                    </a>
+                    <div style="font-size:12px;color:#666;margin-top:2px;">
+                      {{ project.personalizationTip }}
+                    </div>
+                  </li>
+                  {% endfor %}
+                </ol>
+              {% else %}
+                <p style="margin:0;color:#666;">No tutorials identified.</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p style="margin:0 0 12px 0;color:#666;">No tutorial recommendations were generated for this run.</p>
+        {% endif %}
+
+        <h2 style="margin:24px 0 8px 0;font-size:18px;">Flagship MVP Projects</h2>
+        {% if mvpProjects %}
+          {% for project in mvpProjects %}
+            <div style="border:1px solid #dfe6f3;border-radius:10px;padding:14px;margin-bottom:12px;background:#f9fbff;">
+              <h3 style="margin:0 0 6px 0;font-size:16px;">
+                <a href="{{ project.tutorialUrl }}" style="color:#0b5cab;text-decoration:none;">
+                  {{ project.tutorialTitle }}
+                </a>
+              </h3>
+              <p style="margin:0 0 6px 0;font-size:13px;color:#333;"><strong>Skills Combined:</strong> {{ project.skillsCombined | join(', ') }}</p>
+              <p style="margin:0 0 6px 0;font-size:13px;"><strong>Estimated Build Time:</strong> {{ project.estimatedBuildTime }}</p>
+              <p style="margin:0 0 6px 0;font-size:13px;color:#333;"><strong>Why it helps:</strong> {{ project.roleFitNote }}</p>
+              <p style="margin:0 0 6px 0;font-size:13px;color:#333;"><strong>Personalization Tip:</strong> {{ project.personalizationTip }}</p>
+              <p style="margin:0;font-size:12px;color:#555;"><strong>CV Entry:</strong> {{ project.cvBlurb }}</p>
+            </div>
+          {% endfor %}
+        {% else %}
+          <p style="margin:0 0 12px 0;color:#666;">MVP projects will appear here when enough data is available.</p>
+        {% endif %}
+
+        <div style="margin:24px 0;">
+          <a href="{{ reviewUrl }}" style="display:inline-block;background:#0b5cab;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;">
+            Review and approve changes
+          </a>
+          {% if docUrl %}
+          <div style="margin-top:8px;">
+            <a href="{{ docUrl }}" style="color:#0b5cab;text-decoration:none;">Open CV in Google Docs</a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
