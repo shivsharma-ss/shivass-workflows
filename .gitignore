@@ -65,3 +65,9 @@ htmlcov/
 secrets.json
 *.pem
 *.key
+
+# Node / Next.js artifacts
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/

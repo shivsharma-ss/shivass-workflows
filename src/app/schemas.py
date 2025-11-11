@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from enum import Enum
 from typing import Any, Literal, Optional
 
@@ -47,6 +48,45 @@ class AnalysisStatusResponse(BaseModel):
     status: AnalysisStatus
     lastError: Optional[str] = None
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AnalysisSummary(BaseModel):
+    """Compact run summary used by dashboards."""
+
+    analysisId: str
+    email: str
+    cvDocId: str
+    status: AnalysisStatus
+    lastError: Optional[str] = None
+    createdAt: datetime
+    updatedAt: datetime
+
+    model_config = {"populate_by_name": True}
+
+    @field_serializer("createdAt", "updatedAt")
+    def serialize_dt(self, value: datetime) -> str:
+        return value.isoformat()
+
+
+class AnalysisListResponse(BaseModel):
+    """Paginated list wrapper for analyses."""
+
+    items: list[AnalysisSummary] = Field(default_factory=list)
+
+
+class AnalysisArtifact(BaseModel):
+    """Artifact payload returned by the API."""
+
+    analysisId: str
+    artifactType: str
+    content: str
+    createdAt: datetime
+
+    model_config = {"populate_by_name": True}
+
+    @field_serializer("createdAt")
+    def serialize_created_at(self, value: datetime) -> str:
+        return value.isoformat()
 
 
 class ApprovalRequest(BaseModel):

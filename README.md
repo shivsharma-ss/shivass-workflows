@@ -76,19 +76,30 @@ docker compose up --build api
 ```
 This mounts the repo into `/app`, passes `.env`, and links Redis/Postgres containers. Stop the stack with `docker compose down`.
 
+### Frontend dashboard
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+By default the dashboard proxies to the API origin it is served from. When running the frontend on a different port, export
+`NEXT_PUBLIC_API_BASE_URL` (for example `http://localhost:8001`) so the UI can reach the FastAPI service.
+
 ## Workflow lifecycle
 1. `POST /v1/analyses` with `{ email, cvDocId, jobDescription?|jobDescriptionUrl? }`. Returns an `analysisId`.
 2. LangGraph immediately records the payload, exports the CV via Drive, ingests the JD, and runs the analysis chain.
 3. When a reviewer decision is required, the workflow pauses in `awaiting_approval` and sends an email containing a signed token.
 4. Reviewer resumes the run by POSTing to `/review/approve` with the `analysisId` + `token`.
-5. The frontend (see `submit-cv.html`) polls `GET /v1/analyses/{analysis_id}` to render status and artifacts.
+5. The Next.js dashboard in `frontend/` polls `GET /v1/analyses` + `GET /v1/analyses/{analysis_id}` and surfaces artifacts.
 
 ## Testing & utilities
 ```bash
 pytest
 ```
 - `scripts/clear_tokens.py` wipes Redis + SQLite OAuth tokens if you want to redo Gmail consent.
-- `submit-cv.html` is a minimal HTML form that targets the API for manual smoke tests.
+- `frontend/` hosts the Next.js dashboard for launching analyses and viewing artifacts (`npm install && npm run dev`).
+- `submit-cv.html` now just links to the dashboard for legacy bookmarks.
 
 ## Project layout
 ```
@@ -105,7 +116,9 @@ submit-cv.html
 
 ## API reference
 - `POST /v1/analyses` — start a CV alignment run.
+- `GET /v1/analyses` — list the most recent runs with status metadata.
 - `GET /v1/analyses/{analysisId}` — fetch the latest status/payload snapshot.
+- `GET /v1/analyses/{analysisId}/artifacts` — download stored intermediate artifacts.
 - `POST /review/approve` — validate the signed token and resume a paused run.
 - `GET /oauth/google/start` / `GET /oauth/google/callback` — Gmail OAuth helper endpoints.
 
