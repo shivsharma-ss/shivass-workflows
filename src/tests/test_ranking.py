@@ -75,6 +75,8 @@ def test_ranking_semantic_skill_boost():
         duration="PT45M",
         view_count=1000,
         like_count=100,
+        comment_count=10,
+        published_at="2023-01-01T00:00:00Z",
     )
     targeted = YouTubeVideo(
         video_id="2",
@@ -85,6 +87,8 @@ def test_ranking_semantic_skill_boost():
         duration="PT60M",
         view_count=1000,
         like_count=100,
+        comment_count=10,
+        published_at="2023-01-01T00:00:00Z",
     )
     ranked = ranking.top_videos([generic, targeted], limit=1, skill_name="Python")
     assert ranked[0].video_id == "2"
@@ -102,6 +106,8 @@ def test_ranking_applies_user_channel_boost():
         duration="PT40M",
         view_count=1000,
         like_count=100,
+        comment_count=10,
+        published_at="2023-01-01T00:00:00Z",
     )
     b = YouTubeVideo(
         video_id="2",
@@ -112,6 +118,8 @@ def test_ranking_applies_user_channel_boost():
         duration="PT40M",
         view_count=1000,
         like_count=100,
+        comment_count=10,
+        published_at="2023-01-01T00:00:00Z",
     )
     ranked = ranking.top_videos(
         [a, b],
@@ -119,3 +127,28 @@ def test_ranking_applies_user_channel_boost():
         user_channel_boosts={"channel b": 1.5},
     )
     assert ranked[0].video_id == "2"
+
+
+def test_ranking_respects_explicit_empty_default_boosts():
+    """Passing an empty mapping should disable default boosts instead of falling back."""
+    with_defaults = RankingService()
+    without_defaults = RankingService(default_channel_boosts={})
+    boosted = with_defaults._channel_boost("freeCodeCamp.org", user_channel_boosts=None)
+    neutral = without_defaults._channel_boost("freeCodeCamp.org", user_channel_boosts=None)
+    assert boosted > 1.0
+    assert neutral == 1.0
+
+
+def test_sanitize_boosts_filters_invalid_entries():
+    """_sanitize_boosts should drop invalid names and multipliers."""
+    ranking = RankingService()
+    sanitized = ranking._sanitize_boosts(
+        {
+            " Valid Channel ": "1.5",
+            "": 2,
+            "zero": 0,
+            "negative": -1,
+            "nan": "not-a-number",
+        },
+    )
+    assert sanitized == {"valid channel": 1.5}

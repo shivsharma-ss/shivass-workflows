@@ -2,8 +2,14 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from typing import TypedDict
 
-DEFAULT_CHANNEL_SUGGESTIONS = [
+
+class ChannelSuggestion(TypedDict):
+    name: str
+    boost: float
+
+DEFAULT_CHANNEL_SUGGESTIONS: list[ChannelSuggestion] = [
     {"name": "freeCodeCamp.org", "boost": 1.10},
     {"name": "Tech With Tim", "boost": 1.10},
     {"name": "TechWithTim", "boost": 1.10},
@@ -24,7 +30,7 @@ def default_channel_boost_map() -> dict[str, float]:
     return result
 
 
-def clone_default_channel_list() -> list[dict[str, float]]:
+def clone_default_channel_list() -> list[ChannelSuggestion]:
     """Return a deep copy so callers can mutate without touching module state."""
 
     return deepcopy(DEFAULT_CHANNEL_SUGGESTIONS)

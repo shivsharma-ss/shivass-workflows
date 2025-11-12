@@ -48,7 +48,8 @@ class RankingService:
     """Scores tutorials using heuristics ported from the n8n workflow."""
 
     def __init__(self, default_channel_boosts: Mapping[str, float] | None = None) -> None:
-        self._default_channel_boosts = self._sanitize_boosts(default_channel_boosts or DEFAULT_CHANNEL_BOOSTS)
+        boosts = DEFAULT_CHANNEL_BOOSTS if default_channel_boosts is None else default_channel_boosts
+        self._default_channel_boosts = self._sanitize_boosts(boosts)
 
     def top_videos(
         self,

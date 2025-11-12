@@ -1,16 +1,11 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, startTransition, useContext, useEffect, useMemo, useState } from 'react';
 
 // Persist user choice so the dashboard theme stays sticky between sessions.
 const STORAGE_KEY = 'dashboard-theme';
 
-const ThemeContext = createContext({
-  theme: 'light',
-  isReady: false,
-  setTheme: () => {},
-  toggleTheme: () => {},
-});
+const ThemeContext = createContext(undefined);
 
 function getStoredTheme() {
   if (typeof window === 'undefined') {
@@ -40,8 +35,10 @@ export function ThemeProvider({ children }) {
   useEffect(() => {
     // Hydrate from localStorage or fall back to the OS preference.
     const initial = getStoredTheme() ?? getPreferredTheme();
-    setTheme(initial);
-    setIsReady(true);
+    startTransition(() => {
+      setTheme(initial);
+      setIsReady(true);
+    });
   }, []);
 
   useEffect(() => {
@@ -74,7 +71,7 @@ export function ThemeProvider({ children }) {
 
 export function useTheme() {
   const ctx = useContext(ThemeContext);
-  if (!ctx) {
+  if (ctx === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
   return ctx;

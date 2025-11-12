@@ -15,7 +15,10 @@ const clampBoost = (value) => {
   return Math.min(2, Math.max(0.5, numeric));
 };
 
-const formatBoost = (value) => `${(value ?? 1).toFixed(2).replace(/\.00$/, '')}×`;
+const formatBoost = (value) => {
+  const boost = clampBoost(value);
+  return `${boost.toFixed(2).replace(/\.00$/, '')}×`;
+};
 
 const generateChannelId = () => {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -185,7 +188,6 @@ export default function AnalysisForm({ onSubmit, isSubmitting, feedback }) {
     setSubmitError(null);
     // Normalize IDs + channels so the API receives clean payloads even if the user pasted URLs everywhere.
     const parsedCvDocId = extractDocIdFromGoogleDocUrl(form.cvDocId);
-    setForm((prev) => ({ ...prev, cvDocId: parsedCvDocId }));
     const sanitizedChannels = preferredChannels
       .map((channel) => ({
         name: channel?.name?.trim(),

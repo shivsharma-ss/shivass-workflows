@@ -15,7 +15,7 @@ export default function ThemeToggle() {
       type="button"
       className={`theme-toggle${!isReady ? ' theme-toggle--loading' : ''}`}
       onClick={toggleTheme}
-      aria-pressed={isDark}
+      aria-pressed={isDark ? 'true' : 'false'}
       aria-label={toggleLabel}
       title={tooltipText}
       disabled={!isReady}

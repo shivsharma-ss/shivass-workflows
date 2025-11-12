@@ -5,9 +5,11 @@
   --color-bg: #f5f7fb;
   --color-bg-gradient: #eef2ff;
   --color-text: #0f172a;
+  --color-text-chip: #0f172a;
   --color-text-muted: #475569;
   --color-text-subtle: #64748b;
   --color-card-bg: #ffffff;
+  --color-card-bg-chip: #ffffffd9;
   --color-card-border: rgba(59, 130, 246, 0.08);
   --color-card-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
   --color-surface-faint: rgba(15, 23, 42, 0.03);
@@ -56,9 +58,11 @@
   --color-bg: #030712;
   --color-bg-gradient: #0f172a;
   --color-text: #f1f5f9;
+  --color-text-chip: #0f172a;
   --color-text-muted: #cbd5f5;
   --color-text-subtle: #94a3b8;
   --color-card-bg: #0f172a;
+  --color-card-bg-chip: #ffffffd9;
   --color-card-border: rgba(148, 163, 184, 0.2);
   --color-card-shadow: 0 20px 40px rgba(2, 6, 23, 0.6);
   --color-surface-faint: rgba(148, 163, 184, 0.08);
@@ -316,7 +320,7 @@ label {
 
 .channel-chip__name {
   font-weight: 600;
-  color: #0f172a;
+  color: var(--color-text-chip);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -325,15 +329,15 @@ label {
 
 .channel-chip__boost {
   font-size: 0.75rem;
-  color: #0f172a;
+  color: var(--color-text-chip);
   font-weight: 700;
   position: absolute;
   top: 0.45rem;
   right: 0.75rem;
-  background: rgba(255, 255, 255, 0.85);
+  background: var(--color-card-bg-chip);
   border-radius: 9999px;
   padding: 0.15rem 0.55rem;
-  border: 1px solid rgba(15, 23, 42, 0.1);
+  border: 1px solid var(--color-card-border);
   box-shadow: 0 4px 10px rgba(15, 23, 42, 0.08);
 }
 
@@ -341,9 +345,9 @@ label {
   font-size: 0.55rem;
   padding: 0.1rem 0.45rem;
   border-radius: 9999px;
-  background: rgba(148, 163, 184, 0.15);
-  color: #0f172a;
-  border: 1px solid rgba(15, 23, 42, 0.12);
+  background: var(--color-surface-faint);
+  color: var(--color-text-chip);
+  border: 1px solid var(--color-card-border);
   position: absolute;
   bottom: 0.45rem;
   right: 0.85rem;

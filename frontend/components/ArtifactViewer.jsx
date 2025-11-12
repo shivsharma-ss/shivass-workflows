@@ -32,6 +32,7 @@ function renderJson(content) {
 export default function ArtifactViewer({ summary, detail, artifacts, isLoading }) {
   const [expandedArtifact, setExpandedArtifact] = useState(null);
   const [payloadExpanded, setPayloadExpanded] = useState(false);
+  const payloadContentId = 'workflow-payload-content';
 
   const toggleArtifact = (key) => {
     setExpandedArtifact((prev) => (prev === key ? null : key));
@@ -111,8 +112,9 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
         {detail ? (
           <>
             <div
+              id={payloadContentId}
               className={`expandable-content${payloadExpanded ? ' expanded' : ''}`}
-              aria-expanded={payloadExpanded}
+              aria-hidden={!payloadExpanded}
             >
               <pre>{renderJson(detail.payload || {})}</pre>
             </div>
@@ -121,6 +123,8 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
               className="expand-toggle-button"
               onClick={togglePayload}
               aria-label={payloadExpanded ? 'Collapse payload' : 'Expand payload'}
+              aria-expanded={payloadExpanded}
+              aria-controls={payloadContentId}
             >
               {payloadExpanded ? 'Collapse' : 'Expand to read more'}
             </button>
@@ -150,6 +154,8 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
                   : null) ??
                 `${artifact.artifactType}-${artifact.createdAt}-${index}`;
               const isExpanded = expandedArtifact === artifactKey;
+              const safeKey = String(artifactKey).replace(/[^a-zA-Z0-9_-]/g, '') || index;
+              const contentId = `artifact-content-${safeKey}`;
               return (
                 <div key={artifactKey} className="artifact-item">
                   <div
@@ -164,8 +170,9 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
                     <span className="refresh-indicator">{formatDate(artifact.createdAt)}</span>
                   </div>
                   <div
+                    id={contentId}
                     className={`artifact-content expandable-content${isExpanded ? ' expanded' : ''}`}
-                    aria-expanded={isExpanded}
+                    aria-hidden={!isExpanded}
                   >
                     <pre>{renderJson(artifact.content)}</pre>
                   </div>
@@ -174,6 +181,8 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
                     className="expand-toggle-button"
                     onClick={() => toggleArtifact(artifactKey)}
                     aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${artifact.artifactType} content`}
+                    aria-expanded={isExpanded}
+                    aria-controls={contentId}
                   >
                     {isExpanded ? 'Collapse' : 'Expand to read more'}
                   </button>

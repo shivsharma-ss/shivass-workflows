@@ -11,7 +11,8 @@ export function extractDocIdFromGoogleDocUrl(input) {
     return match[1];
   }
 
-  const docIdPattern = /^[a-zA-Z0-9_-]{20,}$/;
+  // Google Docs IDs are typically 39+ characters; require that minimum when users paste raw IDs.
+  const docIdPattern = /^[a-zA-Z0-9_-]{39,}$/;
   if (docIdPattern.test(trimmed)) {
     return trimmed;
   }
