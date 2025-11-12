@@ -51,3 +51,32 @@ async def test_storage_lifecycle(tmp_path):
     await storage.save_youtube_video_metadata("https://youtu.be/vid", "desc", ["python"], ["tensorflow"])
     metadata = await storage.get_youtube_video_metadata("https://youtu.be/vid")
     assert metadata["skills"] == ["python"]
+
+
+@pytest.mark.asyncio
+async def test_list_analyses_and_artifacts(tmp_path):
+    """Verify list endpoints surface most recent analyses and artifacts."""
+
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'storage.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+
+    await storage.create_analysis("a1", "user1@example.com", "doc1", {"foo": "bar"})
+    await storage.update_status("a1", AnalysisStatus.RUNNING)
+    await storage.save_artifact("a1", "summary", "first artifact")
+
+    await storage.create_analysis("a2", "user2@example.com", "doc2", {"foo": "baz"})
+    await storage.update_status("a2", AnalysisStatus.COMPLETED)
+    await storage.save_artifact("a2", "summary", "second artifact")
+    await storage.save_artifact("a2", "details", {"score": 95})
+
+    all_runs = await storage.list_analyses()
+    assert [run.analysis_id for run in all_runs] == ["a2", "a1"]
+
+    completed_runs = await storage.list_analyses(status=AnalysisStatus.COMPLETED)
+    assert len(completed_runs) == 1
+    assert completed_runs[0].analysis_id == "a2"
+
+    artifacts = await storage.list_artifacts("a2")
+    assert [item["artifact_type"] for item in artifacts] == ["details", "summary"]
+    assert "second artifact" in artifacts[-1]["content"]

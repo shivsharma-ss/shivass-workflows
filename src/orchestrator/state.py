@@ -30,6 +30,13 @@ class SkillQuery(TypedDict):
     query: str
 
 
+class PreferredChannel(TypedDict):
+    """Defines a per-channel ranking multiplier."""
+
+    name: str
+    boost: float
+
+
 class GraphState(TypedDict, total=False):
     """State passed between LangGraph nodes."""
 
@@ -49,6 +56,7 @@ class GraphState(TypedDict, total=False):
     awaiting_approval: bool
     approval_token: str
     approval_granted: bool
+    preferred_channels: list[PreferredChannel]
 
 
 @dataclass

@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     review_secret: str = Field(alias="REVIEW_SECRET")
     youtube_quota_daily: int = Field(default=10000, alias="YOUTUBE_QUOTA_DAILY")
     email_smoke_recipient: Optional[EmailStr] = Field(default=None, alias="EMAIL_SMOKE_RECIPIENT")
+    cors_origins_raw: str = Field(
+        default="http://localhost:3000",
+        alias="CORS_ORIGINS",
+        description="Comma-separated origins allowed to make cross-origin requests.",
+    )
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [
+            origin.strip()
+            for origin in self.cors_origins_raw.split(",")
+            if origin.strip()
+        ]
 
     model_config = SettingsConfigDict(
         env_file=".env",

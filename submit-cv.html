@@ -1,172 +1,49 @@
 <!DOCTYPE html>
-<html>
-<head>
-  <title>CV Analyzer</title>
-  <style>
-    body { font-family: Arial; max-width: 700px; margin: 50px auto; padding: 20px; background: #f3f4f6; }
-    .container { background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    h1 { color: #2563eb; margin-top: 0; }
-    label { display: block; margin-top: 20px; font-weight: bold; color: #374151; }
-    input, textarea { width: 100%; padding: 12px; margin-top: 8px; border: 2px solid #e5e7eb; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
-    input:focus, textarea:focus { outline: none; border-color: #2563eb; }
-    button { background: #2563eb; color: white; padding: 15px 40px; border: none; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 30px; width: 100%; }
-    button:hover { background: #1d4ed8; }
-    .result { margin-top: 20px; padding: 20px; background: #d1fae5; border-radius: 8px; display: none; }
-    .error { background: #fee2e2; color: #991b1b; }
-    .loading { display: none; text-align: center; margin-top: 20px; padding: 20px; background: #eef2ff; border-radius: 10px; border: 1px solid #cdd4ff; }
-    .loading .spinner { width: 32px; height: 32px; border: 4px solid #c7d2fe; border-top-color: #2563eb; border-radius: 50%; margin: 0 auto 12px; animation: spin 0.9s linear infinite; }
-    .loading-title { font-weight: 600; color: #1f2937; margin: 0; }
-    .loading-detail { color: #4b5563; margin: 6px 0 0 0; font-size: 14px; }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <h1>CV-JD Alignment Analyzer</h1>
-    <p>Upload your job description and get personalized CV improvement suggestions</p>
-    
-    <form id="cvForm">
-      <label>Your Email Address *</label>
-      <input type="email" id="email" value="shivsharma982828@gmail.com" required>
-      
-      <label>CV Google Doc ID *</label>
-      <input type="text" id="cvDocId" value="1RUXGym-vB-e8UBNhxOY-Hr5bUZEe5MjlJe4qv9EyxK8" required>
-      <small style="color: #6b7280;">Find this in your Google Doc URL after /d/</small>
-      
-      <label>Job Description (paste full text)</label>
-      <textarea id="jobDescription" rows="8" placeholder="Paste the complete job description here..."></textarea>
-      
-      <label>OR Job Description URL</label>
-      <input type="url" id="jdUrl" placeholder="https://company.com/job-posting">
-      <small style="color: #6b7280;">Leave one field empty if using the other</small>
-      
-      <button type="submit">Start Analysis</button>
-    </form>
-
-    <div class="loading" id="loading">
-      <div class="spinner" aria-hidden="true"></div>
-      <p class="loading-title" id="loadingTitle">Preparing your request...</p>
-      <p class="loading-detail" id="loadingDetail">Verifying your CV link and job details.</p>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CV Analyzer Dashboard moved</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: #0f172a;
+        color: #f8fafc;
+        margin: 0;
+        padding: 2rem;
+        text-align: center;
+      }
+      a {
+        color: #38bdf8;
+      }
+      .card {
+        max-width: 560px;
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(148, 163, 184, 0.3);
+        border-radius: 18px;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 40px 80px rgba(15, 23, 42, 0.45);
+      }
+      h1 {
+        margin-bottom: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>We have a real dashboard now 🚀</h1>
+      <p>
+        The original static form has been replaced by a fully interactive Next.js interface. Launch the
+        frontend from <code>frontend/</code> with <code>npm install</code> and <code>npm run dev</code> to manage CV analysis
+        workflows, monitor historical runs, and inspect artifacts.
+      </p>
+      <p>
+        Need the API? It is still served by FastAPI under <code>/v1/analyses</code>—the new dashboard consumes the same
+        endpoints.
+      </p>
     </div>
-
-    <div class="result" id="result"></div>
-  </div>
-
-  <script>
-    const API_URL = '/v1/analyses';
-    const progressUpdates = [
-      {
-        title: 'Submitting your request…',
-        detail: 'Sending the CV, job description, and preferences to the workflow.'
-      },
-      {
-        title: 'Syncing with Google Drive…',
-        detail: 'Fetching your CV doc and making sure it is accessible to the agents.'
-      },
-      {
-        title: 'Analyzing CV vs JD…',
-        detail: 'Matching requirements, ATS keywords, and skill depth.'
-      },
-      {
-        title: 'Drafting recommendations…',
-        detail: 'Compiling gaps, rewriting bullet points, and curating learning resources.'
-      },
-      {
-        title: 'Dispatching the report…',
-        detail: 'Emailing the personalized analysis straight to your inbox.'
-      }
-    ];
-
-    let progressTimerId = null;
-
-    const loadingTitle = document.getElementById('loadingTitle');
-    const loadingDetail = document.getElementById('loadingDetail');
-
-    function setLoadingMessage(title, detail) {
-      loadingTitle.textContent = title;
-      loadingDetail.textContent = detail;
-    }
-
-    function startProgressUpdates() {
-      stopProgressUpdates();
-      let index = 0;
-      setLoadingMessage(progressUpdates[index].title, progressUpdates[index].detail);
-      progressTimerId = setInterval(() => {
-        index = Math.min(index + 1, progressUpdates.length - 1);
-        setLoadingMessage(progressUpdates[index].title, progressUpdates[index].detail);
-        if (index === progressUpdates.length - 1) {
-          clearInterval(progressTimerId);
-          progressTimerId = null;
-        }
-      }, 6000);
-    }
-
-    function stopProgressUpdates(finalTitle, finalDetail) {
-      if (progressTimerId) {
-        clearInterval(progressTimerId);
-        progressTimerId = null;
-      }
-      if (finalTitle || finalDetail) {
-        setLoadingMessage(finalTitle || loadingTitle.textContent, finalDetail || loadingDetail.textContent);
-      }
-    }
-
-    document.getElementById('cvForm').onsubmit = async (e) => {
-      e.preventDefault();
-      
-      const submitBtn = e.target.querySelector('button');
-      const loading = document.getElementById('loading');
-      const result = document.getElementById('result');
-      
-      // Validate inputs
-      const jdText = document.getElementById('jobDescription').value.trim();
-      const jdUrl = document.getElementById('jdUrl').value.trim();
-      
-      if (!jdText && !jdUrl) {
-        alert('Please provide either Job Description text OR URL');
-        return;
-      }
-      
-      // Show loading
-      submitBtn.disabled = true;
-      submitBtn.textContent = 'Processing...';
-      loading.style.display = 'block';
-      startProgressUpdates();
-      result.style.display = 'none';
-      
-      try {
-        const response = await fetch(API_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userEmail: document.getElementById('email').value,
-            cvDocId: document.getElementById('cvDocId').value,
-            jobDescription: jdText,
-            jobDescriptionUrl: jdUrl || null
-          })
-        });
-        
-        if (response.ok) {
-          result.className = 'result';
-          result.innerHTML = '<strong>Analysis started!</strong><br>Check your email in 2-3 minutes for detailed results.';
-          result.style.display = 'block';
-          stopProgressUpdates('Workflow queued successfully!', 'Sit tight — the full breakdown arrives in your inbox shortly.');
-          e.target.reset();
-        } else {
-          throw new Error('Request failed');
-        }
-      } catch (error) {
-        result.className = 'result error';
-        result.innerHTML = '<strong>Error:</strong> Could not start analysis. Please try again.';
-        result.style.display = 'block';
-        stopProgressUpdates('Something went wrong', 'We could not start the workflow. Please update your inputs and try again.');
-      } finally {
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Start Analysis';
-        stopProgressUpdates();
-        loading.style.display = 'none';
-      }
-    };
-  </script>
-</body>
+  </body>
 </html>

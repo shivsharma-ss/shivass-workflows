@@ -137,6 +137,27 @@ class StorageService:
             async with db.execute(query, params) as cursor:
                 return await cursor.fetchone()
 
+    async def _fetchall(self, query: str, *params: Any) -> list[aiosqlite.Row]:
+        async with aiosqlite.connect(self._db_path) as db:
+            db.row_factory = aiosqlite.Row
+            async with db.execute(query, params) as cursor:
+                return await cursor.fetchall()
+
+    @staticmethod
+    def _row_to_record(row: aiosqlite.Row) -> AnalysisRecord:
+        payload = json.loads(row["payload"]) if row["payload"] else {}
+        return AnalysisRecord(
+            analysis_id=row["analysis_id"],
+            email=row["email"],
+            cv_doc_id=row["cv_doc_id"],
+            status=AnalysisStatus(row["status"]),
+            payload=payload,
+            approval_token=row["approval_token"],
+            last_error=row["last_error"],
+            created_at=datetime.fromisoformat(row["created_at"]),
+            updated_at=datetime.fromisoformat(row["updated_at"]),
+        )
+
     async def create_analysis(self, analysis_id: str, email: str, cv_doc_id: str, payload: dict[str, Any]) -> None:
         """Insert a new analysis with initial payload."""
 
@@ -213,18 +234,29 @@ class StorageService:
         row = await self._fetchone("SELECT * FROM analysis_runs WHERE analysis_id = ?", analysis_id)
         if not row:
             return None
-        payload = json.loads(row["payload"]) if row["payload"] else {}
-        return AnalysisRecord(
-            analysis_id=row["analysis_id"],
-            email=row["email"],
-            cv_doc_id=row["cv_doc_id"],
-            status=AnalysisStatus(row["status"]),
-            payload=payload,
-            approval_token=row["approval_token"],
-            last_error=row["last_error"],
-            created_at=datetime.fromisoformat(row["created_at"]),
-            updated_at=datetime.fromisoformat(row["updated_at"]),
+        return self._row_to_record(row)
+
+    async def list_analyses(
+        self,
+        *,
+        limit: int = 50,
+        status: Optional[AnalysisStatus] = None,
+    ) -> list[AnalysisRecord]:
+        """Return recent analyses optionally filtered by status."""
+
+        clauses: list[str] = []
+        params: list[Any] = []
+        if status:
+            clauses.append("status = ?")
+            params.append(status.value)
+        where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
+        query = (
+            "SELECT * FROM analysis_runs"
+            f"{where} ORDER BY created_at DESC LIMIT ?"
         )
+        params.append(limit)
+        rows = await self._fetchall(query, *params)
+        return [self._row_to_record(row) for row in rows]
 
     async def save_artifact(self, analysis_id: str, artifact_type: str, content: Any) -> None:
         """Persist intermediate artifact content keyed by analysis and type."""
@@ -255,6 +287,29 @@ class StorageService:
             artifact_type,
         )
         return row["content"] if row else None
+
+    async def list_artifacts(self, analysis_id: str) -> list[dict[str, Any]]:
+        """Return all artifacts captured for an analysis sorted by recency."""
+
+        rows = await self._fetchall(
+            """
+            SELECT artifact_type, content, created_at
+              FROM analysis_artifacts
+             WHERE analysis_id = ?
+             ORDER BY datetime(created_at) DESC
+            """,
+            analysis_id,
+        )
+        artifacts: list[dict[str, Any]] = []
+        for row in rows:
+            artifacts.append(
+                {
+                    "artifact_type": row["artifact_type"],
+                    "content": row["content"],
+                    "created_at": row["created_at"],
+                }
+            )
+        return artifacts
 
     async def save_youtube_cache(self, query: str, videos: list[dict[str, Any]]) -> None:
         """Persist rendered YouTube results so future runs can reuse them."""

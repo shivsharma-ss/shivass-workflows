@@ -27,6 +27,8 @@ class YouTubeVideo:
     duration: Optional[str]
     view_count: Optional[int]
     like_count: Optional[int]
+    comment_count: Optional[int] = None
+    published_at: Optional[str] = None
 
 
 class YouTubeService:
@@ -76,6 +78,8 @@ class YouTubeService:
             vid = item.get("id", {}).get("videoId")
             snippet = item.get("snippet", {})
             stat_entry = stats_map.get(vid, {})
+            statistics = stat_entry.get("statistics", {}) if isinstance(stat_entry, dict) else {}
+            content_details = stat_entry.get("contentDetails", {}) if isinstance(stat_entry, dict) else {}
             videos.append(
                 YouTubeVideo(
                     video_id=vid or "",
@@ -83,9 +87,11 @@ class YouTubeService:
                     description=snippet.get("description", ""),
                     url=f"https://youtu.be/{vid}" if vid else "",
                     channel_title=snippet.get("channelTitle", ""),
-                    duration=stat_entry.get("contentDetails", {}).get("duration"),
-                    view_count=int(stat_entry.get("statistics", {}).get("viewCount", 0) or 0),
-                    like_count=int(stat_entry.get("statistics", {}).get("likeCount", 0) or 0),
+                    duration=content_details.get("duration"),
+                    view_count=int(statistics.get("viewCount", 0) or 0),
+                    like_count=int(statistics.get("likeCount", 0) or 0),
+                    comment_count=int(statistics.get("commentCount", 0) or 0),
+                    published_at=snippet.get("publishedAt"),
                 )
             )
         payload = [video.__dict__ for video in videos]

@@ -379,6 +379,28 @@ async def test_yt_branch_creates_suggestions(node_env, base_state):
 
 
 @pytest.mark.asyncio
+async def test_yt_branch_injects_default_channels(node_env, base_state):
+    """Missing preferred channel list should fall back to default suggestions."""
+    state = base_state.copy()
+    state.pop("preferred_channels", None)
+    state["skill_queries"] = [{"skill": "TensorFlow", "query": "TensorFlow tutorial"}]
+    node = yt_branch.build_node(node_env.deps)
+    result = await node(state)
+    assert result["preferred_channels"]
+
+
+@pytest.mark.asyncio
+async def test_yt_branch_respects_empty_channels(node_env, base_state):
+    """Empty preferred channel list should remain empty (no default reinjection)."""
+    state = base_state.copy()
+    state["preferred_channels"] = []
+    state["skill_queries"] = [{"skill": "TensorFlow", "query": "TensorFlow tutorial"}]
+    node = yt_branch.build_node(node_env.deps)
+    result = await node(state)
+    assert result["preferred_channels"] == []
+
+
+@pytest.mark.asyncio
 async def test_yt_branch_includes_gemini_analysis(node_env, base_state):
     """When Gemini is configured, tutorial analysis data should be attached."""
     state = base_state.copy()

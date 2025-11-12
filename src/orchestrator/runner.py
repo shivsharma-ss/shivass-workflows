@@ -4,9 +4,17 @@ from __future__ import annotations
 from typing import Any, Tuple
 from uuid import uuid4
 
-from app.schemas import AnalysisRequest, AnalysisStatus, CvAnalysisLLMResponse, CvScoreLLMResponse, ImprovementPlan, ProjectSuggestion
+from app.schemas import (
+    AnalysisRequest,
+    AnalysisStatus,
+    CvAnalysisLLMResponse,
+    CvScoreLLMResponse,
+    ImprovementPlan,
+    ProjectSuggestion,
+)
 from orchestrator.exceptions import ApprovalPendingError
 from orchestrator.state import GraphState, NodeDeps
+from services.channel_defaults import clone_default_channel_list
 
 
 class OrchestratorRunner:
@@ -20,12 +28,21 @@ class OrchestratorRunner:
         """Start a new analysis and return its ID + status."""
 
         analysis_id = uuid4().hex
+        has_user_override = "preferredYoutubeChannels" in payload.model_fields_set
+        preferred_channels = [
+            channel.model_dump()
+            for channel in payload.preferredYoutubeChannels
+            if channel.name
+        ]
+        if not preferred_channels and not has_user_override:
+            preferred_channels = clone_default_channel_list()
         state: GraphState = {
             "analysis_id": analysis_id,
             "email": payload.email,
             "cv_doc_id": payload.cvDocId,
             "job_description": payload.jobDescription or "",
             "job_description_url": str(payload.jobDescriptionUrl) if payload.jobDescriptionUrl else None,
+            "preferred_channels": preferred_channels,
         }
         await self._deps.storage.create_analysis(
             analysis_id=analysis_id,
@@ -82,6 +99,8 @@ class OrchestratorRunner:
             "approval_token": state.get("approval_token"),
             "approval_granted": state.get("approval_granted", False),
         }
+        if "preferred_channels" in state:
+            payload["preferred_channels"] = state.get("preferred_channels")
         if state.get("cv_analysis"):
             payload["cv_analysis"] = state["cv_analysis"].model_dump()
         if state.get("score"):
@@ -111,4 +130,6 @@ class OrchestratorRunner:
         if payload.get("project_suggestions"):
             suggestions = [ProjectSuggestion.model_validate(item) for item in payload["project_suggestions"]]
             state["project_suggestions"] = suggestions
+        if "preferred_channels" in payload:
+            state["preferred_channels"] = payload.get("preferred_channels")
         return state

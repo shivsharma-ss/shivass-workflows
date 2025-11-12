@@ -1,14 +1,20 @@
 """FastAPI routes for the orchestrator."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from datetime import datetime
+import logging
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 from itsdangerous import BadSignature, URLSafeSerializer
 
 from app.config import get_settings
 from app.schemas import (
+    AnalysisArtifact,
+    AnalysisListResponse,
     AnalysisRequest,
     AnalysisResponse,
+    AnalysisSummary,
     AnalysisStatus,
     AnalysisStatusResponse,
     ApprovalRequest,
@@ -17,6 +23,7 @@ from services.container import AppContainer
 
 router = APIRouter()
 OAUTH_STATE_KEY = "oauth-state:"
+logger = logging.getLogger(__name__)
 
 
 def get_container(request: Request) -> AppContainer:
@@ -30,6 +37,28 @@ async def create_analysis(
 ) -> AnalysisResponse:
     analysis_id, status = await container.runner.kickoff(payload)
     return AnalysisResponse(analysisId=analysis_id, status=status)
+
+
+@router.get("/v1/analyses", response_model=AnalysisListResponse)
+async def list_analyses(
+    limit: int = Query(50, ge=1, le=100),
+    status: AnalysisStatus | None = Query(None),
+    container: AppContainer = Depends(get_container),
+) -> AnalysisListResponse:
+    records = await container.storage.list_analyses(limit=limit, status=status)
+    items = [
+        AnalysisSummary(
+            analysisId=record.analysis_id,
+            email=record.email,
+            cvDocId=record.cv_doc_id,
+            status=record.status,
+            lastError=record.last_error,
+            createdAt=record.created_at,
+            updatedAt=record.updated_at,
+        )
+        for record in records
+    ]
+    return AnalysisListResponse(items=items)
 
 
 @router.get("/v1/analyses/{analysis_id}", response_model=AnalysisStatusResponse)
@@ -46,6 +75,53 @@ async def get_analysis(
         lastError=record.last_error,
         payload=record.payload,
     )
+
+
+@router.get("/v1/analyses/{analysis_id}/artifacts", response_model=list[AnalysisArtifact])
+async def list_analysis_artifacts(
+    analysis_id: str,
+    container: AppContainer = Depends(get_container),
+) -> list[AnalysisArtifact]:
+    record = await container.storage.get_analysis(analysis_id)
+    if not record:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    raw_artifacts = await container.storage.list_artifacts(analysis_id)
+    artifacts: list[AnalysisArtifact] = []
+    for item in raw_artifacts:
+        try:
+            created_at_value = item["created_at"]
+        except KeyError as exc:
+            logger.error(
+                "Missing created_at for artifact %s of analysis %s",
+                item.get("artifact_type"),
+                analysis_id,
+                exc_info=exc,
+            )
+            raise HTTPException(
+                status_code=400, detail="Artifact created_at timestamp is missing or invalid"
+            ) from exc
+        try:
+            created_at = datetime.fromisoformat(created_at_value)
+        except ValueError as exc:
+            logger.error(
+                "Invalid created_at %r for artifact %s of analysis %s",
+                created_at_value,
+                item.get("artifact_type"),
+                analysis_id,
+                exc_info=exc,
+            )
+            raise HTTPException(
+                status_code=400, detail="Artifact created_at timestamp is missing or invalid"
+            ) from exc
+        artifacts.append(
+            AnalysisArtifact(
+                analysisId=analysis_id,
+                artifactType=item["artifact_type"],
+                content=item["content"],
+                createdAt=created_at,
+            )
+        )
+    return artifacts
 
 
 @router.post("/review/approve", response_model=AnalysisResponse)
