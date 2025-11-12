@@ -1,6 +1,5 @@
 import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
-import prettierConfig from 'eslint-config-prettier';
-import prettierPlugin from 'eslint-plugin-prettier';
+import prettierFlatConfig from 'eslint-config-prettier/flat';
 import vitestPlugin from '@vitest/eslint-plugin';
 
 const vitestTestFiles = [
@@ -11,16 +10,6 @@ const vitestTestFiles = [
 
 const config = [
   ...nextCoreWebVitals,
-  {
-    name: 'prettier',
-    plugins: {
-      prettier: prettierPlugin,
-    },
-    rules: {
-      ...(prettierConfig?.rules ?? {}),
-      'prettier/prettier': 'error',
-    },
-  },
   {
     name: 'vitest-tests',
     files: vitestTestFiles,
@@ -38,6 +27,7 @@ const config = [
       '@vitest/expect-expect': 'warn',
     },
   },
+  prettierFlatConfig,
 ];
 
 export default config;

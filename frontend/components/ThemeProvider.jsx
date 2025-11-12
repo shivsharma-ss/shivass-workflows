@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, startTransition, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 // Persist user choice so the dashboard theme stays sticky between sessions.
 const STORAGE_KEY = 'dashboard-theme';
@@ -22,24 +22,26 @@ function getPreferredTheme() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
+function resolveInitialTheme() {
+  return getStoredTheme() ?? getPreferredTheme();
+}
+
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState(() => {
-    if (typeof document === 'undefined') {
-      return 'light';
-    }
-    const attr = document.documentElement.dataset.theme;
-    return attr === 'dark' ? 'dark' : 'light';
-  });
+  const [theme, setTheme] = useState(() => resolveInitialTheme());
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     // Hydrate from localStorage or fall back to the OS preference.
-    const initial = getStoredTheme() ?? getPreferredTheme();
-    startTransition(() => {
+    const initial = resolveInitialTheme();
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (theme !== initial) {
       setTheme(initial);
+    }
+    if (!isReady) {
       setIsReady(true);
-    });
-  }, []);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [theme, isReady]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
