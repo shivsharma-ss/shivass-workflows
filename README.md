@@ -7,6 +7,8 @@ Agentic workflow that ingests a candidate CV from Google Docs, reconciles it wit
 - LangGraph state machine orchestrates `ingest → drive_export → merge_jd → jd_analyze → cv_score → build_queries → yt_branch → mvp_projects → collect → email → wait_approval → docs_apply → recalc`.
 - Deterministic LLM calls via Pydantic schemas (analysis, scoring, tutorial personalization, MVP plan).
 - YouTube search with quota tracking, caching (Redis + SQLite), and Gemini-powered tutorial analysis (optional).
+- Quota-aware YouTube client enforces `YOUTUBE_QUOTA_DAILY` so we fail fast before blowing through API limits.
+- Next.js dashboard (`frontend/`) handles submissions, themed UI, live run history, and artifact review instead of the legacy static form.
 - Gmail sending supports either stored OAuth tokens (per reviewer) or a service account fallback with SMTP backup.
 - Persistence layer keeps analysis payloads, artifacts, tutorial cache, OAuth tokens, and quota usage inside `data/orchestrator.db`.
 
@@ -29,11 +31,11 @@ pip install -e .[dev]
 uvicorn src.app.main:create_app --factory --reload
 ```
 
-`docker-compose.yml` can also spin up Redis/Postgres alongside the API container:
+`docker-compose.yml` can also spin up Redis alongside the API container:
 ```bash
 docker compose up --build
 ```
-The FastAPI app still writes to `sqlite+aiosqlite:///./data/orchestrator.db`; the Postgres container is there for future migrations.
+The FastAPI app still writes to `sqlite+aiosqlite:///./data/orchestrator.db`; Redis just unlocks caching + OAuth state without any extra services.
 
 ## Environment variables
 | Variable | Purpose |
@@ -46,11 +48,20 @@ The FastAPI app still writes to `sqlite+aiosqlite:///./data/orchestrator.db`; th
 | `SMTP_*` | Optional SMTP fallback if Gmail API is unavailable. |
 | `REDIS_URL` | Cache + OAuth state backend (defaults to `redis://localhost:6379/0`). |
 | `DATABASE_URL` | Must remain an SQLite URL today (default `sqlite+aiosqlite:///./data/orchestrator.db`). |
+| `FRONTEND_BASE_URL` | Base URL exposed to reviewers when they reply/approve. |
+| `CORS_ORIGINS` | Comma-separated origins allowed to call the API (default `http://localhost:3000`). |
 | `YOUTUBE_API_KEY` | Enables tutorial discovery and ranking. |
+| `YOUTUBE_QUOTA_DAILY` | Daily quota units the YouTube client may spend before it fails fast (default `10000`). |
 | `GEMINI_API_KEY` | Enables tutorial enrichment via Gemini. |
 | `REVIEW_SECRET` | Secret for signing reviewer approval tokens. |
 
 See `.env.example` for the complete list.
+
+Frontend-specific env vars belong in `frontend/.env.local`:
+```bash
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8001
+```
+That variable is only needed when the dashboard is served from a different origin than the FastAPI backend.
 
 ## Credential walkthrough
 1. **Google Drive / Docs service account**  
@@ -74,7 +85,7 @@ uvicorn src.app.main:create_app --factory --reload --port 8001
 ```bash
 docker compose up --build api
 ```
-This mounts the repo into `/app`, passes `.env`, and links Redis/Postgres containers. Stop the stack with `docker compose down`.
+This mounts the repo into `/app`, passes `.env`, and links the Redis container for caching/state. Stop the stack with `docker compose down`.
 
 ### Frontend dashboard
 ```bash
@@ -87,7 +98,8 @@ By default the dashboard proxies to the API origin it is served from. When runni
 `NEXT_PUBLIC_API_BASE_URL` (for example `http://localhost:8001`) so the UI can reach the FastAPI service.
 
 ## Workflow lifecycle
-1. `POST /v1/analyses` with `{ email, cvDocId, jobDescription?|jobDescriptionUrl? }`. Returns an `analysisId`.
+1. `POST /v1/analyses` with `{ email, cvDocId, jobDescription?|jobDescriptionUrl?, preferredYoutubeChannels? }`. Returns an `analysisId`.  
+   The dashboard preloads trusted channels (freeCodeCamp.org, Tech With Tim, TechWithTim, IBM Technology) with a mild boost—edit or remove them before submission if you prefer other creators. Leaving the list empty disables boosts entirely.
 2. LangGraph immediately records the payload, exports the CV via Drive, ingests the JD, and runs the analysis chain.
 3. When a reviewer decision is required, the workflow pauses in `awaiting_approval` and sends an email containing a signed token.
 4. Reviewer resumes the run by POSTing to `/review/approve` with the `analysisId` + `token`.
@@ -96,6 +108,10 @@ By default the dashboard proxies to the API origin it is served from. When runni
 ## Testing & utilities
 ```bash
 pytest
+cd frontend
+npm run lint
+npm run test
+npm run type-check
 ```
 - `scripts/clear_tokens.py` wipes Redis + SQLite OAuth tokens if you want to redo Gmail consent.
 - `frontend/` hosts the Next.js dashboard for launching analyses and viewing artifacts (`npm install && npm run dev`).

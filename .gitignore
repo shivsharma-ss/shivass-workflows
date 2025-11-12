@@ -39,12 +39,15 @@ data/
 *.db
 *.sqlite3
 *.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # Test and coverage
 .pytest_cache/
 .cache/
 .coverage
 coverage.xml
+coverage/
 htmlcov/
 
 # Logs
@@ -71,3 +74,10 @@ node_modules/
 frontend/node_modules/
 frontend/.next/
 frontend/out/
+frontend/.env.local
+frontend/.env.*.local
+frontend/.eslintcache
+frontend/.swc/
+frontend/.turbo/
+frontend/.vercel/
+frontend/coverage/

@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from app.config import get_settings
@@ -24,6 +25,14 @@ def create_app() -> FastAPI:
     settings = get_settings()
     container = AppContainer(settings)
     app = FastAPI(title="CV-JD Alignment Orchestrator", version="0.1.0")
+    allowed_origins = list(dict.fromkeys(settings.cors_origins + [settings.frontend_base_url]))
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=allowed_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     app.include_router(router)
     app.state.container = container  # type: ignore[attr-defined]
 

@@ -9,6 +9,13 @@ from typing import Any, Literal, Optional
 from pydantic import AliasChoices, BaseModel, Field, HttpUrl, field_serializer
 
 
+def _alias_choices(field_name: str) -> AliasChoices:
+    """Return alias choices that accept camelCase and snake_case variants."""
+
+    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", field_name).lower()
+    return AliasChoices(field_name, snake)
+
+
 class AnalysisStatus(str, Enum):
     """Possible lifecycle states for an analysis run."""
 
@@ -30,6 +37,11 @@ class AnalysisRequest(BaseModel):
     cvDocId: str = Field(..., description="Google Docs document ID for the CV")
     jobDescription: Optional[str] = Field(default=None, description="Inline job description text")
     jobDescriptionUrl: Optional[HttpUrl] = Field(default=None, description="URL to fetch the job description")
+    preferredYoutubeChannels: list["PreferredChannelBoost"] = Field(
+        default_factory=list,
+        description="Optional list of preferred channels with custom boost multipliers",
+        validation_alias=_alias_choices("preferredYoutubeChannels"),
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -69,7 +81,7 @@ class AnalysisSummary(BaseModel):
 
 
 class AnalysisListResponse(BaseModel):
-    """Paginated list wrapper for analyses."""
+    """List wrapper for analyses."""
 
     items: list[AnalysisSummary] = Field(default_factory=list)
 
@@ -94,13 +106,6 @@ class ApprovalRequest(BaseModel):
 
     analysisId: str
     token: str
-
-
-def _alias_choices(field_name: str) -> AliasChoices:
-    """Return alias choices that accept camelCase and snake_case variants."""
-
-    snake = re.sub(r"(?<!^)(?=[A-Z])", "_", field_name).lower()
-    return AliasChoices(field_name, snake)
 
 
 class CvAnalysisLLMResponse(BaseModel):
@@ -195,6 +200,21 @@ class TutorialAnalysis(BaseModel):
 class ProjectSuggestion(BaseModel):
     skill: str = Field(..., validation_alias=_alias_choices("skill"))
     projects: list[TutorialSuggestion] = Field(..., validation_alias=_alias_choices("projects"))
+
+    model_config = {"populate_by_name": True}
+
+
+class PreferredChannelBoost(BaseModel):
+    """User-defined per-channel ranking multiplier."""
+
+    name: str = Field(..., min_length=1, validation_alias=_alias_choices("name"))
+    boost: float = Field(
+        default=1.1,
+        ge=0.5,
+        le=2.0,
+        description="Multiplier applied to ranking score when the channel matches",
+        validation_alias=_alias_choices("boost"),
+    )
 
     model_config = {"populate_by_name": True}
 

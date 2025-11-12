@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -22,6 +23,7 @@ from services.container import AppContainer
 
 router = APIRouter()
 OAUTH_STATE_KEY = "oauth-state:"
+logger = logging.getLogger(__name__)
 
 
 def get_container(request: Request) -> AppContainer:
@@ -86,7 +88,31 @@ async def list_analysis_artifacts(
     raw_artifacts = await container.storage.list_artifacts(analysis_id)
     artifacts: list[AnalysisArtifact] = []
     for item in raw_artifacts:
-        created_at = datetime.fromisoformat(item["created_at"])
+        try:
+            created_at_value = item["created_at"]
+        except KeyError as exc:
+            logger.error(
+                "Missing created_at for artifact %s of analysis %s",
+                item.get("artifact_type"),
+                analysis_id,
+                exc_info=exc,
+            )
+            raise HTTPException(
+                status_code=400, detail="Artifact created_at timestamp is missing or invalid"
+            ) from exc
+        try:
+            created_at = datetime.fromisoformat(created_at_value)
+        except ValueError as exc:
+            logger.error(
+                "Invalid created_at %r for artifact %s of analysis %s",
+                created_at_value,
+                item.get("artifact_type"),
+                analysis_id,
+                exc_info=exc,
+            )
+            raise HTTPException(
+                status_code=400, detail="Artifact created_at timestamp is missing or invalid"
+            ) from exc
         artifacts.append(
             AnalysisArtifact(
                 analysisId=analysis_id,

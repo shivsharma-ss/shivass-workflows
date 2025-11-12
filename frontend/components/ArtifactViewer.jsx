@@ -1,7 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+
 import StatusBadge from './StatusBadge';
 
+// ----- Formatting helpers -----
 function formatDate(value) {
   if (!value) return '—';
   try {
@@ -27,21 +30,45 @@ function renderJson(content) {
 }
 
 export default function ArtifactViewer({ summary, detail, artifacts, isLoading }) {
+  const [expandedArtifact, setExpandedArtifact] = useState(null);
+  const [payloadExpanded, setPayloadExpanded] = useState(false);
+
+  const toggleArtifact = (key) => {
+    setExpandedArtifact((prev) => (prev === key ? null : key));
+  };
+
+  const togglePayload = () => {
+    setPayloadExpanded((prev) => !prev);
+  };
+
+  // Guard state so empty selections still render helpful guidance.
   if (!summary) {
     return (
       <div className="card" style={{ minHeight: '320px' }}>
         <h2>Run details</h2>
-        <p style={{ color: '#64748b' }}>Select a run from the history to inspect payloads and artifacts.</p>
+        <p style={{ color: 'var(--color-text-subtle)' }}>
+          Select a run from the history to inspect payloads and artifacts.
+        </p>
       </div>
     );
   }
 
+  // Main detail surface holds metadata, payload, and artifacts.
   return (
     <div className="card" style={{ minHeight: '320px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+        }}
+      >
         <div>
           <h2 style={{ marginBottom: '0.25rem' }}>Run details</h2>
-          <p style={{ color: '#475569', margin: 0 }}>Inspect structured payloads saved during execution.</p>
+          <p style={{ color: 'var(--color-text-muted)', margin: 0 }}>
+            Inspect structured payloads saved during execution.
+          </p>
         </div>
         <StatusBadge status={summary.status} />
       </div>
@@ -49,23 +76,27 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
       <div className="status-grid" style={{ marginTop: '1.5rem' }}>
         <div className="status-card">
           <strong>Analysis ID</strong>
-          <div style={{ fontFamily: 'monospace', marginTop: '0.25rem' }}>{summary.analysisId}</div>
+          <div className="status-value" style={{ fontFamily: 'monospace' }}>
+            {summary.analysisId}
+          </div>
         </div>
         <div className="status-card">
           <strong>Email</strong>
-          <div style={{ marginTop: '0.25rem' }}>{summary.email}</div>
+          <div className="status-value">{summary.email}</div>
         </div>
         <div className="status-card">
           <strong>CV doc ID</strong>
-          <div style={{ fontFamily: 'monospace', marginTop: '0.25rem' }}>{summary.cvDocId}</div>
+          <div className="status-value" style={{ fontFamily: 'monospace' }}>
+            {summary.cvDocId}
+          </div>
         </div>
         <div className="status-card">
           <strong>Created</strong>
-          <div style={{ marginTop: '0.25rem' }}>{formatDate(summary.createdAt)}</div>
+          <div className="status-value">{formatDate(summary.createdAt)}</div>
         </div>
         <div className="status-card">
           <strong>Updated</strong>
-          <div style={{ marginTop: '0.25rem' }}>{formatDate(summary.updatedAt)}</div>
+          <div className="status-value">{formatDate(summary.updatedAt)}</div>
         </div>
       </div>
 
@@ -78,29 +109,77 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
       <div style={{ marginTop: '1.5rem' }}>
         <h3 style={{ marginBottom: '0.75rem' }}>Latest workflow payload</h3>
         {detail ? (
-          <pre>{renderJson(detail.payload || {})}</pre>
+          <>
+            <div
+              className={`expandable-content${payloadExpanded ? ' expanded' : ''}`}
+              aria-expanded={payloadExpanded}
+            >
+              <pre>{renderJson(detail.payload || {})}</pre>
+            </div>
+            <button
+              type="button"
+              className="expand-toggle-button"
+              onClick={togglePayload}
+              aria-label={payloadExpanded ? 'Collapse payload' : 'Expand payload'}
+            >
+              {payloadExpanded ? 'Collapse' : 'Expand to read more'}
+            </button>
+          </>
         ) : (
-          <p style={{ color: '#64748b' }}>{isLoading ? 'Loading payload...' : 'No payload recorded yet.'}</p>
+          <p style={{ color: 'var(--color-text-subtle)' }}>
+            {isLoading ? 'Loading payload...' : 'No payload recorded yet.'}
+          </p>
         )}
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>
         <h3 style={{ marginBottom: '0.75rem' }}>Artifacts</h3>
         {isLoading && artifacts.length === 0 ? (
-          <p style={{ color: '#64748b' }}>Loading artifacts...</p>
+          <p style={{ color: 'var(--color-text-subtle)' }}>Loading artifacts...</p>
         ) : artifacts.length === 0 ? (
-          <p style={{ color: '#64748b' }}>No artifacts have been persisted for this run.</p>
+          <p style={{ color: 'var(--color-text-subtle)' }}>
+            No artifacts have been persisted for this run.
+          </p>
         ) : (
           <div className="artifact-list">
-            {artifacts.map((artifact) => (
-              <div key={`${artifact.artifactType}-${artifact.createdAt}`} className="artifact-item">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: '0.75rem' }}>
-                  <h4 style={{ marginBottom: 0 }}>{artifact.artifactType}</h4>
-                  <span className="refresh-indicator">{formatDate(artifact.createdAt)}</span>
+            {artifacts.map((artifact, index) => {
+              const artifactKey =
+                artifact.id ??
+                (artifact.analysisId
+                  ? `${artifact.analysisId}-${artifact.artifactType}-${artifact.createdAt}`
+                  : null) ??
+                `${artifact.artifactType}-${artifact.createdAt}-${index}`;
+              const isExpanded = expandedArtifact === artifactKey;
+              return (
+                <div key={artifactKey} className="artifact-item">
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      gap: '0.75rem',
+                    }}
+                  >
+                    <h4 style={{ marginBottom: 3 }}>{artifact.artifactType}</h4>
+                    <span className="refresh-indicator">{formatDate(artifact.createdAt)}</span>
+                  </div>
+                  <div
+                    className={`artifact-content expandable-content${isExpanded ? ' expanded' : ''}`}
+                    aria-expanded={isExpanded}
+                  >
+                    <pre>{renderJson(artifact.content)}</pre>
+                  </div>
+                  <button
+                    type="button"
+                    className="expand-toggle-button"
+                    onClick={() => toggleArtifact(artifactKey)}
+                    aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${artifact.artifactType} content`}
+                  >
+                    {isExpanded ? 'Collapse' : 'Expand to read more'}
+                  </button>
                 </div>
-                <pre style={{ marginTop: '0.75rem' }}>{renderJson(artifact.content)}</pre>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

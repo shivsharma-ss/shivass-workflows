@@ -2,6 +2,7 @@
 
 import StatusBadge from './StatusBadge';
 
+// Normalizes timestamps to the viewer locale.
 function formatDate(value) {
   if (!value) return '—';
   try {
@@ -15,22 +16,37 @@ function formatDate(value) {
 }
 
 export default function RunHistoryTable({
-  analyses,
+  analyses = [],
   selectedId,
   onSelect,
   isLoading,
   onRefresh,
   lastUpdated,
 }) {
+  // Any consumer can quickly glance at the control header to understand refresh cadence.
   return (
     <div className="card">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '1rem',
+        }}
+      >
         <div>
           <h2 style={{ marginBottom: '0.25rem' }}>Run history</h2>
-          <p style={{ color: '#475569', margin: 0 }}>Track LangGraph executions and drill into artifact output.</p>
+          <p style={{ color: 'var(--color-text-muted)', margin: 0 }}>
+            Track LangGraph executions and drill into artifact output.
+          </p>
         </div>
         <div className="form-actions" style={{ justifyContent: 'flex-end' }}>
-          <button type="button" className="secondary-button" onClick={onRefresh} disabled={isLoading}>
+          <button
+            type="button"
+            className="secondary-button"
+            onClick={onRefresh}
+            disabled={isLoading}
+          >
             {isLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
@@ -52,32 +68,49 @@ export default function RunHistoryTable({
           <tbody>
             {analyses.length === 0 && (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: '#64748b' }}>
+                <td
+                  colSpan={5}
+                  className="table-empty"
+                  style={{ textAlign: 'center', padding: '2rem' }}
+                >
                   {isLoading ? 'Loading runs...' : 'No runs recorded yet.'}
                 </td>
               </tr>
             )}
-            {analyses.map((analysis) => (
-              <tr
-                key={analysis.analysisId}
-                className={analysis.analysisId === selectedId ? 'selected' : ''}
-                onClick={() => onSelect(analysis.analysisId)}
-              >
-                <td style={{ fontFamily: 'monospace' }}>{analysis.analysisId}</td>
-                <td>{analysis.email}</td>
-                <td>
-                  <StatusBadge status={analysis.status} />
-                </td>
-                <td>{formatDate(analysis.updatedAt)}</td>
-                <td style={{ maxWidth: '240px' }}>
-                  {analysis.lastError ? (
-                    <span style={{ color: '#dc2626' }}>{analysis.lastError}</span>
-                  ) : (
-                    <span style={{ color: '#0f172a', opacity: 0.45 }}>—</span>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {analyses.map((analysis) => {
+              const isSelected = analysis.analysisId === selectedId;
+              const handleKeyDown = (event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onSelect(analysis.analysisId);
+                }
+              };
+              return (
+                <tr
+                  key={analysis.analysisId}
+                  className={isSelected ? 'selected' : ''}
+                  onClick={() => onSelect(analysis.analysisId)}
+                  tabIndex={0}
+                  role="button"
+                  aria-pressed={isSelected}
+                  onKeyDown={handleKeyDown}
+                >
+                  <td style={{ fontFamily: 'monospace' }}>{analysis.analysisId}</td>
+                  <td>{analysis.email}</td>
+                  <td>
+                    <StatusBadge status={analysis.status} />
+                  </td>
+                  <td>{formatDate(analysis.updatedAt)}</td>
+                  <td style={{ maxWidth: '240px' }}>
+                    {analysis.lastError ? (
+                      <span style={{ color: 'var(--color-error)' }}>{analysis.lastError}</span>
+                    ) : (
+                      <span style={{ color: 'var(--color-text)', opacity: 0.45 }}>—</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

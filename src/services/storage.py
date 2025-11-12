@@ -252,7 +252,7 @@ class StorageService:
         where = f" WHERE {' AND '.join(clauses)}" if clauses else ""
         query = (
             "SELECT * FROM analysis_runs"
-            f"{where} ORDER BY datetime(created_at) DESC LIMIT ?"
+            f"{where} ORDER BY created_at DESC LIMIT ?"
         )
         params.append(limit)
         rows = await self._fetchall(query, *params)

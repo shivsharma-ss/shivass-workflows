@@ -1,3 +1,4 @@
+// Encodes label + colors so components can stay declarative.
 const STATUS_STYLES = {
   pending: { label: 'Pending', color: '#f97316', dot: '#fb923c' },
   running: { label: 'Running', color: '#2563eb', dot: '#60a5fa' },

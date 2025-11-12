@@ -1,3 +1,4 @@
+// Trim trailing slash so buildUrl can reliably concatenate paths.
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
 
 function buildUrl(path) {
@@ -7,6 +8,7 @@ function buildUrl(path) {
   return `${API_BASE}${path}`;
 }
 
+// Gracefully handle empty bodies and invalid JSON so callers can depend on null.
 async function parseJson(response) {
   const text = await response.text();
   if (!text) {
@@ -20,8 +22,10 @@ async function parseJson(response) {
   }
 }
 
+// ----- Queries -----
 export async function fetchAnalyses(limit = 50, signal) {
-  const response = await fetch(buildUrl(`/v1/analyses?limit=${limit}`), {
+  const query = new URLSearchParams({ limit: `${limit}` });
+  const response = await fetch(buildUrl(`/v1/analyses?${query}`), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -39,7 +43,8 @@ export async function fetchAnalyses(limit = 50, signal) {
 }
 
 export async function fetchAnalysisStatus(analysisId, signal) {
-  const response = await fetch(buildUrl(`/v1/analyses/${analysisId}`), {
+  const encodedId = encodeURIComponent(analysisId);
+  const response = await fetch(buildUrl(`/v1/analyses/${encodedId}`), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -56,7 +61,8 @@ export async function fetchAnalysisStatus(analysisId, signal) {
 }
 
 export async function fetchArtifacts(analysisId, signal) {
-  const response = await fetch(buildUrl(`/v1/analyses/${analysisId}/artifacts`), {
+  const encodedId = encodeURIComponent(analysisId);
+  const response = await fetch(buildUrl(`/v1/analyses/${encodedId}/artifacts`), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
@@ -73,11 +79,13 @@ export async function fetchArtifacts(analysisId, signal) {
   return payload || [];
 }
 
+// ----- Mutations -----
 export async function createAnalysis({
   email,
   cvDocId,
   jobDescription,
   jobDescriptionUrl,
+  preferredYoutubeChannels = [],
 }) {
   const response = await fetch(buildUrl('/v1/analyses'), {
     method: 'POST',
@@ -90,6 +98,7 @@ export async function createAnalysis({
       cvDocId,
       jobDescription: jobDescription || null,
       jobDescriptionUrl: jobDescriptionUrl || null,
+      preferredYoutubeChannels,
     }),
   });
 

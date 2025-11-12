@@ -43,7 +43,7 @@ Repoint your `submit-cv.html` form action to the new `POST /v1/analyses`. Keep p
 - **google‑api‑python‑client** for Drive/Docs/Gmail  
 - **HTTPX** for YouTube Data API v3  
 - **Jinja2** for email templating  
-- **SQLite/Postgres** for persistence; **Redis** for cache (optional)
+- **SQLite** for persistence; **Redis** for cache (optional)
 
 ---
 
