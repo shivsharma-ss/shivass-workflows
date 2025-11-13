@@ -80,3 +80,21 @@ async def test_list_analyses_and_artifacts(tmp_path):
     artifacts = await storage.list_artifacts("a2")
     assert [item["artifact_type"] for item in artifacts] == ["details", "summary"]
     assert "second artifact" in artifacts[-1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_update_status_without_payload_preserves_existing_data(tmp_path):
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'storage.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+    await storage.create_analysis("a1", "user@example.com", "doc", {"foo": "bar"})
+    await storage.update_status("a1", AnalysisStatus.COMPLETED)
+    record = await storage.get_analysis("a1")
+    assert record is not None
+    assert record.payload["foo"] == "bar"
+    assert record.status == AnalysisStatus.COMPLETED
+
+
+def test_storage_requires_sqlite_backend():
+    with pytest.raises(ValueError):
+        StorageService("postgresql://user:pass@localhost/db")

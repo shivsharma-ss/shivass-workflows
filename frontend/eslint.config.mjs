@@ -9,6 +9,9 @@ const vitestTestFiles = [
 ];
 
 const config = [
+  {
+    ignores: ['coverage/**', 'test-results/**'],
+  },
   ...nextCoreWebVitals,
   {
     name: 'vitest-tests',

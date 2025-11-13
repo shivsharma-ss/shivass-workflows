@@ -54,6 +54,19 @@ packages = ["src/app", "src/orchestrator", "src/services"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-q"
+addopts = "-q --cov=src --cov-report=term-missing --cov-fail-under=90"
 testpaths = ["src/tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+omit = [
+    "src/app/main.py",
+    "src/orchestrator/graph.py",
+    "src/services/container.py",
+    "src/services/gemini.py",
+    "src/services/google_docs.py",
+    "src/services/google_drive.py",
+    "src/services/llm.py",
+    "src/services/secrets.py",
+    "src/services/youtube.py",
+]

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 // Persist user choice so the dashboard theme stays sticky between sessions.
 const STORAGE_KEY = 'dashboard-theme';
@@ -29,19 +29,22 @@ function resolveInitialTheme() {
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(() => resolveInitialTheme());
   const [isReady, setIsReady] = useState(false);
+  const hydratedRef = useRef(false);
 
   useLayoutEffect(() => {
+    if (hydratedRef.current) {
+      return;
+    }
     // Hydrate from localStorage or fall back to the OS preference.
     const initial = resolveInitialTheme();
     /* eslint-disable react-hooks/set-state-in-effect */
     if (theme !== initial) {
       setTheme(initial);
     }
-    if (!isReady) {
-      setIsReady(true);
-    }
+    setIsReady(true);
+    hydratedRef.current = true;
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [theme, isReady]);
+  }, [theme]);
 
   useEffect(() => {
     if (typeof document === 'undefined') {
