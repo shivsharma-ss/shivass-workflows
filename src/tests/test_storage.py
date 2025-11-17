@@ -169,3 +169,142 @@ async def test_initialize_idempotent(tmp_path):
     await storage.create_analysis("check", "user@example.com", "doc", {})
     record = await storage.get_analysis("check")
     assert record is not None
+
+
+@pytest.mark.asyncio
+async def test_runner_kickoff_background_mode(tmp_path):
+    """Runner should start analysis in background when background=True."""
+    from orchestrator.runner import OrchestratorRunner
+    from app.schemas import AnalysisRequest
+
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'runner.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+
+    # Create minimal deps and graph
+    deps = NodeDeps(
+        settings=None,
+        storage=storage,
+        drive=None,
+        docs=None,
+        gmail=None,
+        llm=None,
+        ranking=None,
+        youtube=None,
+        gemini=None,
+    )
+
+    async def mock_graph_invoke(state):
+        await asyncio.sleep(0.1)  # Simulate work
+        return state
+
+    from unittest.mock import AsyncMock
+    mock_graph = AsyncMock()
+    mock_graph.ainvoke = mock_graph_invoke
+
+    runner = OrchestratorRunner(mock_graph, deps)
+
+    request = AnalysisRequest(
+        email="test@example.com",
+        cvDocId="doc123",
+        jobDescription="Job desc",
+    )
+
+    analysis_id, status = await runner.kickoff(request, background=True)
+
+    assert status == AnalysisStatus.PENDING
+    assert analysis_id is not None
+
+    # Give background task time to start
+    await asyncio.sleep(0.05)
+
+    # Analysis should exist
+    record = await storage.get_analysis(analysis_id)
+    assert record is not None
+
+
+@pytest.mark.asyncio
+async def test_storage_record_node_event(tmp_path):
+    """Storage should persist node execution events."""
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'storage.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+
+    await storage.create_analysis("a1", "user@example.com", "doc", {})
+
+    await storage.record_node_event(
+        analysis_id="a1",
+        node_name="test_node",
+        state_before={"input": "data"},
+        output={"result": "success"},
+        started_at="2024-01-01T00:00:00Z",
+        error=None,
+    )
+
+    # Verify event was stored (requires additional query method)
+    async with storage._connection(row_factory=True) as db:
+        async with db.execute(
+            "SELECT * FROM node_events WHERE analysis_id = ? AND node_name = ?",
+            ("a1", "test_node"),
+        ) as cursor:
+            row = await cursor.fetchone()
+
+    assert row is not None
+    assert row["node_name"] == "test_node"
+    assert row["error"] is None
+
+
+@pytest.mark.asyncio
+async def test_storage_list_videos_missing_analysis(tmp_path):
+    """Storage should list videos without Gemini analysis."""
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'storage.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+
+    # Insert videos with and without analysis
+    async with storage._connection() as db:
+        await db.execute(
+            "INSERT INTO youtube_videos (video_id, title, url) VALUES (?, ?, ?)",
+            ("vid1", "Video 1", "https://youtu.be/vid1"),
+        )
+        await db.execute(
+            "INSERT INTO youtube_videos (video_id, title, url) VALUES (?, ?, ?)",
+            ("vid2", "Video 2", "https://youtu.be/vid2"),
+        )
+        await db.execute(
+            "INSERT INTO youtube_videos (video_id, title, url) VALUES (?, ?, ?)",
+            ("vid3", "Video 3", "https://youtu.be/vid3"),
+        )
+        # Add analysis for vid2
+        await db.execute(
+            "INSERT INTO video_analyses (video_id, model, summary) VALUES (?, ?, ?)",
+            ("vid2", "gemini-2.5-flash", "Summary"),
+        )
+        await db.commit()
+
+    missing = await storage.list_videos_missing_analysis(limit=10, resume_after=None)
+
+    assert len(missing) == 2
+    video_ids = {row["video_id"] for row in missing}
+    assert "vid1" in video_ids
+    assert "vid3" in video_ids
+    assert "vid2" not in video_ids
+
+
+@pytest.mark.asyncio
+async def test_storage_get_status_history(tmp_path):
+    """Storage should return chronological status history."""
+    db_url = f"sqlite+aiosqlite:///{tmp_path / 'storage.db'}"
+    storage = StorageService(db_url)
+    await storage.initialize()
+
+    await storage.create_analysis("a1", "user@example.com", "doc", {})
+    await storage.update_status("a1", AnalysisStatus.RUNNING, {"step": "ingest"})
+    await storage.update_status("a1", AnalysisStatus.COMPLETED, {"step": "done"})
+
+    history = await storage.get_status_history("a1")
+
+    assert len(history) == 3  # pending, running, completed
+    assert history[0]["status"] == AnalysisStatus.PENDING.value
+    assert history[1]["status"] == AnalysisStatus.RUNNING.value
+    assert history[2]["status"] == AnalysisStatus.COMPLETED.value
