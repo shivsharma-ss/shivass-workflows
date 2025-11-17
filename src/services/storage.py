@@ -603,31 +603,36 @@ class StorageService:
 
         now = datetime.now(timezone.utc).isoformat()
         async with self._connection(row_factory=True) as db:
-            await db.execute(
+            await db.execute("BEGIN IMMEDIATE TRANSACTION")
+            try:
+                await db.execute(
                 """
                 INSERT OR IGNORE INTO oauth_accounts (provider, account, created_at)
                 VALUES (?, ?, ?)
                 """,
                 (provider, account, now),
             )
-            async with db.execute(
-                """
-                SELECT COALESCE(MAX(version), 0) AS max_version
-                  FROM oauth_tokens
-                 WHERE provider = ? AND account = ?
-                """,
-                (provider, account),
-            ) as cursor:
-                row = await cursor.fetchone()
-            next_version = (row["max_version"] if row else 0) + 1
-            await db.execute(
-                """
-                INSERT INTO oauth_tokens (provider, account, version, encrypted_credentials, issued_at, expires_at)
-                VALUES (?, ?, ?, ?, ?, NULL)
-                """,
-                (provider, account, next_version, _json_dumps(credentials), now),
-            )
-            await db.commit()
+                async with db.execute(
+                    """
+                    SELECT COALESCE(MAX(version), 0) AS max_version
+                      FROM oauth_tokens
+                     WHERE provider = ? AND account = ?
+                    """,
+                    (provider, account),
+                ) as cursor:
+                    row = await cursor.fetchone()
+                next_version = (row["max_version"] if row else 0) + 1
+                await db.execute(
+                    """
+                    INSERT INTO oauth_tokens (provider, account, version, encrypted_credentials, issued_at, expires_at)
+                    VALUES (?, ?, ?, ?, ?, NULL)
+                    """,
+                    (provider, account, next_version, _json_dumps(credentials), now),
+                )
+                await db.commit()
+            except Exception:
+                await db.rollback()
+                raise
 
     async def get_oauth_credentials(self, provider: str, account: str) -> Optional[dict[str, Any]]:
         """Fetch the latest stored OAuth credentials."""
