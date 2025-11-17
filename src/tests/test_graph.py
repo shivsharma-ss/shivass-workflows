@@ -87,7 +87,7 @@ async def test_runner_handles_interrupt(tmp_path):
         jobDescription="JD",
         jobDescriptionUrl=None,
     )
-    analysis_id, status = await runner.kickoff(request)
+    analysis_id, status = await runner.kickoff(request, background=False)
     assert status == AnalysisStatus.AWAITING_APPROVAL
     record = await storage.get_analysis(analysis_id)
     # The DB snapshot should reflect a paused workflow.
@@ -108,7 +108,7 @@ async def test_runner_completes(tmp_path):
         jobDescription="JD",
         jobDescriptionUrl=None,
     )
-    analysis_id, status = await runner.kickoff(request)
+    analysis_id, status = await runner.kickoff(request, background=False)
     assert status == AnalysisStatus.COMPLETED
     record = await storage.get_analysis(analysis_id)
     # Final payload is persisted as COMPLETED so clients can read results.

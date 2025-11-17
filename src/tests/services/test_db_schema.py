@@ -3,31 +3,73 @@
 from __future__ import annotations
 
 import sqlite3
-from pathlib import Path
-
 import pytest
 
 from services.storage import AnalysisStatus, StorageService
 
 
-def test_bundled_database_matches_expected_schema():
-    db_path = Path("data/orchestrator.db")
-    assert db_path.exists(), "Bundled orchestrator.db is missing"
+@pytest.mark.asyncio
+async def test_migrations_create_expected_schema(tmp_path):
+    db_path = tmp_path / "schema.db"
+    storage = StorageService(f"sqlite+aiosqlite:///{db_path}")
+    await storage.initialize()
 
     expected_tables = {
-        "analysis_runs": {
+        "analyses": {"id", "email", "cv_doc_id", "approval_token", "created_at", "updated_at"},
+        "analysis_inputs": {"analysis_id", "payload", "created_at"},
+        "analysis_status_log": {"analysis_id", "status", "payload", "last_error", "recorded_at"},
+        "artifacts": {"id", "analysis_id", "artifact_type", "version", "content", "created_at"},
+        "node_events": {
+            "id",
             "analysis_id",
-            "email",
-            "cv_doc_id",
-            "status",
-            "payload",
-            "approval_token",
-            "last_error",
-            "created_at",
-            "updated_at",
+            "node_name",
+            "started_at",
+            "completed_at",
+            "state_before",
+            "output",
+            "error",
         },
-        "analysis_artifacts": {"analysis_id", "artifact_type", "content", "created_at"},
-        "oauth_tokens": {"provider", "account", "credentials", "created_at", "updated_at"},
+        "youtube_queries": {"id", "analysis_id", "skill", "query", "created_at"},
+        "youtube_videos": {
+            "video_id",
+            "title",
+            "url",
+            "channel_title",
+            "duration",
+            "view_count",
+            "like_count",
+            "fetched_at",
+        },
+        "youtube_query_results": {"query_id", "video_id", "rank"},
+        "video_analyses": {
+            "video_id",
+            "model",
+            "summary",
+            "key_points",
+            "difficulty_level",
+            "prerequisites",
+            "takeaways",
+            "skills",
+            "tech_stack",
+            "cached_at",
+        },
+        "oauth_accounts": {"provider", "account", "created_at"},
+        "oauth_tokens": {
+            "provider",
+            "account",
+            "version",
+            "encrypted_credentials",
+            "issued_at",
+            "expires_at",
+        },
+        "cache_entries": {
+            "cache_key",
+            "namespace",
+            "value",
+            "created_at",
+            "expires_at",
+            "last_accessed",
+        },
     }
 
     with sqlite3.connect(db_path) as conn:

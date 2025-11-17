@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -18,4 +19,4 @@ def build_node(deps: NodeDeps):
         )
         return state
 
-    return collect
+    return instrument_node("collect", deps, collect)

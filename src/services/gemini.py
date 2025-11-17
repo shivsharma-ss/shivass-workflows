@@ -11,6 +11,7 @@ from google import genai
 from google.genai import types
 
 from services.cache import CacheService
+from services.storage import StorageService
 
 logger = logging.getLogger(__name__)
 
@@ -60,10 +61,12 @@ class GeminiService:
         self,
         api_key: str,
         cache: Optional[CacheService] = None,
+        storage: Optional[StorageService] = None,
         model: str = "gemini-2.5-flash",
         client: Optional[genai.Client] = None,
     ) -> None:
         self._cache = cache
+        self._storage = storage
         self._model = model
         self._client = client or genai.Client(api_key=api_key)
 
@@ -85,21 +88,46 @@ class GeminiService:
             return None
 
     async def _fetch_cached(self, url: str) -> Optional[VideoAnalysis]:
-        if not self._cache:
+        cached_payload: Optional[dict[str, Any]] = None
+        if self._cache:
+            cached_payload = await self._cache.get_video_analysis(url)
+        if cached_payload:
+            try:
+                return VideoAnalysis.from_payload(cached_payload)
+            except Exception:
+                logger.warning("Corrupt Gemini cache entry for %s", url, exc_info=True)
+        if not self._storage:
             return None
-        cached = await self._cache.get_video_analysis(url)
-        if not cached:
+        persisted = await self._storage.get_youtube_video_metadata(url)
+        if not _has_structured_analysis(persisted):
             return None
-        try:
-            return VideoAnalysis.from_payload(cached)
-        except Exception:
-            logger.warning("Corrupt Gemini cache entry for %s", url, exc_info=True)
-            return None
+        payload = {
+            "summary": persisted.get("summary", ""),
+            "key_points": persisted.get("key_points", []),
+            "difficulty_level": persisted.get("difficulty_level", ""),
+            "prerequisites": persisted.get("prerequisites", []),
+            "practical_takeaways": persisted.get("takeaways", []),
+        }
+        analysis = VideoAnalysis.from_payload(payload)
+        if self._cache:
+            await self._cache.set_video_analysis(url, analysis.to_payload())
+        return analysis
 
     async def _cache_result(self, url: str, analysis: VideoAnalysis) -> None:
-        if not self._cache:
-            return
-        await self._cache.set_video_analysis(url, analysis.to_payload())
+        if self._cache:
+            await self._cache.set_video_analysis(url, analysis.to_payload())
+        if self._storage:
+            try:
+                await self._storage.save_youtube_video_metadata(
+                    video_url=url,
+                    summary=analysis.summary,
+                    key_points=analysis.key_points,
+                    difficulty_level=analysis.difficulty_level,
+                    prerequisites=analysis.prerequisites,
+                    takeaways=analysis.practical_takeaways,
+                )
+            except Exception:
+                logger.warning("Failed to persist Gemini analysis for %s", url, exc_info=True)
 
     async def _analyze_with_retries(self, url: str, max_retries: int = 3) -> Optional[VideoAnalysis]:
         delay = 1
@@ -155,3 +183,14 @@ class GeminiService:
         if not text:
             raise ValueError("Gemini response did not include text output")
         return json.loads(text)
+
+
+def _has_structured_analysis(metadata: Optional[dict[str, Any]]) -> bool:
+    if not metadata:
+        return False
+    return bool(
+        metadata.get("key_points")
+        or metadata.get("prerequisites")
+        or metadata.get("takeaways")
+        or metadata.get("difficulty_level")
+    )

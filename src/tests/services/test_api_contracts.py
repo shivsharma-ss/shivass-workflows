@@ -38,6 +38,7 @@ class FakeStorage:
                 updated_at=now,
             )
         }
+        self.node_events: list[dict[str, str]] = []
         self.artifacts = {
             "seed": [
                 {
@@ -68,13 +69,32 @@ class FakeStorage:
         }
         self.artifacts.setdefault(analysis_id, []).append(payload)
 
+    async def record_node_event(
+        self,
+        analysis_id: str,
+        node_name: str,
+        state_before: dict | None = None,
+        output: dict | None = None,
+        *,
+        started_at: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        self.node_events.append(
+            {
+                "analysis_id": analysis_id,
+                "node_name": node_name,
+                "started_at": started_at or "",
+                "error": error,
+            }
+        )
+
 
 class FakeRunner:
     def __init__(self, storage: FakeStorage):
         self.storage = storage
         self.resume_calls: list[str] = []
 
-    async def kickoff(self, payload: AnalysisRequest):
+    async def kickoff(self, payload: AnalysisRequest, *, background: bool = True):
         analysis_id = f"run-{len(self.storage.records) + 1}"
         now = datetime.now(timezone.utc)
         record = AnalysisRecord(
@@ -89,6 +109,8 @@ class FakeRunner:
             updated_at=now,
         )
         self.storage.records[analysis_id] = record
+        if background:
+            return analysis_id, AnalysisStatus.PENDING
         return analysis_id, record.status
 
     async def resume(self, analysis_id: str):

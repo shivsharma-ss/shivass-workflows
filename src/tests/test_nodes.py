@@ -55,6 +55,8 @@ class FakeStorage:
         self.artifacts: dict[tuple[str, str], Any] = {}
         self.youtube_cache: dict[str, Any] = {}
         self.oauth_credentials: dict[tuple[str, str], dict[str, Any]] = {}
+        self.node_events: list[dict[str, Any]] = []
+        self.video_metadata: dict[str, dict[str, Any]] = {}
 
     async def update_status(self, analysis_id, status, payload):
         self.status_updates.append({"analysis_id": analysis_id, "status": status, "payload": payload})
@@ -74,17 +76,38 @@ class FakeStorage:
     async def get_youtube_cache(self, query, max_age_seconds=86400):
         return self.youtube_cache.get(query)
 
-    async def save_youtube_video_metadata(self, video_url, summary, skills, tech_stack):
-        pass
+    async def save_youtube_video_metadata(self, video_url, **metadata):
+        self.video_metadata[video_url] = metadata
 
     async def get_youtube_video_metadata(self, video_url):
-        return None
+        return self.video_metadata.get(video_url)
 
     async def save_oauth_credentials(self, provider, account, credentials):
         self.oauth_credentials[(provider, account)] = credentials
 
     async def get_oauth_credentials(self, provider, account):
         return self.oauth_credentials.get((provider, account))
+
+    async def record_node_event(
+        self,
+        analysis_id: str,
+        node_name: str,
+        state_before: dict[str, Any] | None = None,
+        output: dict[str, Any] | None = None,
+        *,
+        started_at: str | None = None,
+        error: str | None = None,
+    ) -> None:
+        self.node_events.append(
+            {
+                "analysis_id": analysis_id,
+                "node_name": node_name,
+                "state_before": state_before,
+                "output": output,
+                "started_at": started_at,
+                "error": error,
+            }
+        )
 
 
 class FakeDrive:
@@ -376,6 +399,8 @@ async def test_yt_branch_creates_suggestions(node_env, base_state):
     result = await node(state)
     assert result["project_suggestions"][0].projects[0].tutorialTitle == "Tutorial"
     assert node_env.youtube.queries == ["TensorFlow tutorial"]
+    assert ("analysis-1", "project_suggestions") in node_env.storage.artifacts
+    assert ("analysis-1", "video_rankings") in node_env.storage.artifacts
 
 
 @pytest.mark.asyncio
@@ -423,6 +448,26 @@ async def test_yt_branch_includes_gemini_analysis(node_env, base_state):
     assert analysis is not None
     assert analysis.summary == "Summary"
     assert gemini.calls == ["https://youtu.be/vid1"]
+
+
+@pytest.mark.asyncio
+async def test_yt_branch_uses_persisted_analysis_without_gemini(node_env, base_state):
+    """Stored metadata should hydrate tutorial analysis even without Gemini."""
+    state = base_state.copy()
+    state["skill_queries"] = [{"skill": "TensorFlow", "query": "TensorFlow tutorial"}]
+    node_env.storage.video_metadata["https://youtu.be/vid1"] = {
+        "summary": "Stored summary",
+        "key_points": ["One", "Two"],
+        "difficulty_level": "Advanced",
+        "prerequisites": ["Python"],
+        "takeaways": ["Ship a demo"],
+    }
+    node = yt_branch.build_node(node_env.deps)
+    result = await node(state)
+    analysis = result["project_suggestions"][0].projects[0].analysis
+    assert analysis is not None
+    assert analysis.difficultyLevel == "Advanced"
+    assert analysis.keyPoints == ["One", "Two"]
 
 
 @pytest.mark.asyncio

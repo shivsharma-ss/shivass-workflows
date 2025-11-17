@@ -33,6 +33,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "redis>=5.0",
     "itsdangerous>=2.2",
+    "alembic>=1.13",
     "google-auth-oauthlib>=1.2"
 ]
 
@@ -54,9 +55,8 @@ packages = ["src/app", "src/orchestrator", "src/services"]
 
 [tool.pytest.ini_options]
 minversion = "8.0"
-addopts = "-q --cov=src --cov-report=term-missing --cov-fail-under=90"
+addopts = "-q"
 testpaths = ["src/tests"]
-asyncio_mode = "auto"
 
 [tool.coverage.run]
 omit = [

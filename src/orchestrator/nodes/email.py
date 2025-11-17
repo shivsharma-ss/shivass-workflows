@@ -8,6 +8,7 @@ from itsdangerous import URLSafeSerializer
 
 from app.schemas import AnalysisStatus, CvAnalysisLLMResponse
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -87,4 +88,4 @@ def build_node(deps: NodeDeps):
         logger.info("analysis %s awaiting approval", state["analysis_id"])
         return state
 
-    return send_email
+    return instrument_node("email", deps, send_email)

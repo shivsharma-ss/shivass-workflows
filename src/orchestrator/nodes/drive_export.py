@@ -5,6 +5,7 @@ import asyncio
 import logging
 
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 MAX_DOC_BYTES = 10 * 1024 * 1024
 
@@ -25,4 +26,4 @@ def build_node(deps: NodeDeps):
         logger.info("analysis %s CV export complete (%d chars)", state["analysis_id"], len(cv_text))
         return state
 
-    return drive_export
+    return instrument_node("drive_export", deps, drive_export)

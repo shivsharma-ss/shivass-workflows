@@ -63,6 +63,10 @@ Frontend-specific env vars belong in `frontend/.env.local`:
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8001
 ```
 That variable is only needed when the dashboard is served from a different origin than the FastAPI backend.
+If you prefer to run the dashboard and backend on different hosts without dealing with CORS in the browser,
+optionally set `API_PROXY_TARGET=https://your-api-host` to let the Next.js dev server proxy the relevant routes
+through Node.js.
+When unset locally, the frontend falls back to `http://localhost:8001`, matching the default FastAPI port.
 
 ## Credential walkthrough
 1. **Google Drive / Docs service account**  
@@ -104,7 +108,7 @@ Key UI capabilities:
 - Theme selection persists via the `ThemeProvider`, and the dashboard keeps the latest run feedback + artifacts available without reloading.
 
 ## Workflow lifecycle
-1. `POST /v1/analyses` with `{ email, cvDocId, jobDescription?|jobDescriptionUrl?, preferredYoutubeChannels? }`. Returns an `analysisId`.  
+1. `POST /v1/analyses` with `{ email, cvDocId, jobDescription?|jobDescriptionUrl?, preferredYoutubeChannels? }`. Returns an `analysisId` immediately while the workflow continues in the background (initial status `pending`).  
    The dashboard preloads trusted channels (freeCodeCamp.org, Tech With Tim, TechWithTim, IBM Technology) with a mild boost—edit or remove them before submission if you prefer other creators. Leaving the list empty disables boosts entirely.
 2. LangGraph immediately records the payload, exports the CV via Drive, ingests the JD, and runs the analysis chain.
 3. When a reviewer decision is required, the workflow pauses in `awaiting_approval` and sends an email containing a signed token.
