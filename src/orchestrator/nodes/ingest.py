@@ -5,6 +5,7 @@ import logging
 
 from app.schemas import AnalysisStatus
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -26,4 +27,4 @@ def build_node(deps: NodeDeps):
         logger.info("analysis %s ingest complete", state["analysis_id"])
         return state
 
-    return ingest
+    return instrument_node("ingest", deps, ingest)

@@ -81,3 +81,7 @@ frontend/.swc/
 frontend/.turbo/
 frontend/.vercel/
 frontend/coverage/
+frontend/playwright-report/
+frontend/blob-report/
+frontend/test-results/
+frontend/.playwright/

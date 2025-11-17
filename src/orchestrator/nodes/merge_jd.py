@@ -6,6 +6,7 @@ import logging
 import httpx
 
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -38,4 +39,4 @@ def build_node(deps: NodeDeps):
         )
         return state
 
-    return merge_jd
+    return instrument_node("merge_jd", deps, merge_jd)

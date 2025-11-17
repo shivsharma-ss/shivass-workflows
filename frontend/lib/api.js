@@ -1,5 +1,6 @@
 // Trim trailing slash so buildUrl can reliably concatenate paths.
-const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || '').replace(/\/$/, '');
+const RAW_API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8001';
+const API_BASE = RAW_API_BASE ? RAW_API_BASE.replace(/\/$/, '') : '';
 
 function buildUrl(path) {
   if (!API_BASE) {

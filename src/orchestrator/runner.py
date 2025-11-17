@@ -1,6 +1,8 @@
 """High-level workflow runner built on top of LangGraph."""
 from __future__ import annotations
 
+import asyncio
+import logging
 from typing import Any, Tuple
 from uuid import uuid4
 
@@ -16,6 +18,8 @@ from orchestrator.exceptions import ApprovalPendingError
 from orchestrator.state import GraphState, NodeDeps
 from services.channel_defaults import clone_default_channel_list
 
+logger = logging.getLogger(__name__)
+
 
 class OrchestratorRunner:
     """Coordinates LangGraph invocation, persistence, and resume logic."""
@@ -24,7 +28,7 @@ class OrchestratorRunner:
         self._graph = graph
         self._deps = deps
 
-    async def kickoff(self, payload: AnalysisRequest) -> Tuple[str, AnalysisStatus]:
+    async def kickoff(self, payload: AnalysisRequest, *, background: bool = True) -> Tuple[str, AnalysisStatus]:
         """Start a new analysis and return its ID + status."""
 
         analysis_id = uuid4().hex
@@ -50,7 +54,10 @@ class OrchestratorRunner:
             cv_doc_id=payload.cvDocId,
             payload=self._state_to_payload(state),
         )
-        state, status = await self._run(state)
+        if background:
+            asyncio.create_task(self._run_guarded(state))
+            return analysis_id, AnalysisStatus.PENDING
+        _, status = await self._run(state)
         return analysis_id, status
 
     async def resume(self, analysis_id: str) -> AnalysisStatus:
@@ -133,3 +140,16 @@ class OrchestratorRunner:
         if "preferred_channels" in payload:
             state["preferred_channels"] = payload.get("preferred_channels")
         return state
+
+    async def _run_guarded(self, state: GraphState) -> None:
+        analysis_id = state.get("analysis_id", "unknown")
+        try:
+            await self._run(state)
+        except Exception as exc:  # pragma: no cover - defensive guard for background tasks
+            logger.exception("Analysis %s failed", analysis_id, exc_info=exc)
+            await self._deps.storage.update_status(
+                analysis_id,
+                AnalysisStatus.FAILED,
+                payload=self._state_to_payload(state),
+                last_error=str(exc),
+            )

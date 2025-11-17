@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -20,4 +21,4 @@ def build_node(deps: NodeDeps):
         logger.info("analysis %s JD analysis complete", state["analysis_id"])
         return state
 
-    return jd_analyze
+    return instrument_node("jd_analyze", deps, jd_analyze)

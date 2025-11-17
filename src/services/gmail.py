@@ -109,7 +109,7 @@ class GmailService:
             return None
 
     async def _try_smtp_send(self, message: MIMEMultipart) -> Optional[dict[str, Any]]:
-        if not self._smtp_server:
+        if not (self._smtp_server and self._smtp_username and self._smtp_password):
             return None
         return await asyncio.to_thread(self._send_via_smtp, message)
 
@@ -125,8 +125,7 @@ class GmailService:
     def _send_via_smtp(self, message: MIMEMultipart) -> dict[str, Any]:
         with smtplib.SMTP(self._smtp_server, self._smtp_port, timeout=30) as server:
             server.starttls()
-            if self._smtp_username and self._smtp_password:
-                server.login(self._smtp_username, self._smtp_password)
+            server.login(self._smtp_username, self._smtp_password)
             server.sendmail(self._sender, [message["To"]], message.as_string())
         return {"transport": "smtp", "status": "sent"}
 

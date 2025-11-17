@@ -20,6 +20,7 @@ export default function Dashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [queuedRunId, setQueuedRunId] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
 
   // ----- Derived dashboard state -----
@@ -110,7 +111,8 @@ export default function Dashboard() {
       setIsSubmitting(true);
       setFeedback(null);
       try {
-        await createAnalysis(formValues);
+        const response = await createAnalysis(formValues);
+        setQueuedRunId(response?.analysisId || null);
         setFeedback({
           message: 'Workflow queued successfully. Expect the review email shortly.',
           variant: 'success',
@@ -122,6 +124,7 @@ export default function Dashboard() {
           message: error.message || 'Unable to start analysis. Please try again.',
           variant: 'error',
         });
+        setQueuedRunId(null);
         return false;
       } finally {
         setIsSubmitting(false);
@@ -129,6 +132,17 @@ export default function Dashboard() {
     },
     [loadAnalyses],
   );
+
+  useEffect(() => {
+    if (!queuedRunId || !feedback || feedback.variant !== 'success') {
+      return;
+    }
+    const queuedSummary = analyses.find((run) => run.analysisId === queuedRunId);
+    if (queuedSummary && queuedSummary.status !== 'pending') {
+      setFeedback(null);
+      setQueuedRunId(null);
+    }
+  }, [analyses, queuedRunId, feedback]);
 
   // ----- Render -----
   return (

@@ -5,28 +5,132 @@ import { useState } from 'react';
 import StatusBadge from './StatusBadge';
 
 // ----- Formatting helpers -----
+function normalizeDate(value) {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'string') {
+    const isoMatch = /^\d{4}-\d{2}-\d{2}T/.test(value);
+    if (isoMatch) return new Date(value);
+    const legacyMatch = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(value);
+    if (legacyMatch) {
+      return new Date(value.replace(' ', 'T') + 'Z');
+    }
+    return new Date(value);
+  }
+  return null;
+}
+
 function formatDate(value) {
-  if (!value) return '—';
+  const parsed = normalizeDate(value);
+  if (!parsed || Number.isNaN(parsed.getTime())) return '—';
   try {
     return new Intl.DateTimeFormat(undefined, {
       dateStyle: 'medium',
       timeStyle: 'short',
-    }).format(new Date(value));
+    }).format(parsed);
   } catch (error) {
     return value;
   }
 }
 
-function renderJson(content) {
+function parseContent(content) {
   if (typeof content !== 'string') {
-    return JSON.stringify(content, null, 2);
-  }
-  try {
-    const parsed = JSON.parse(content);
-    return JSON.stringify(parsed, null, 2);
-  } catch (error) {
     return content;
   }
+  try {
+    return JSON.parse(content);
+  } catch (error) {
+    return null;
+  }
+}
+
+function renderJson(content) {
+  const parsed = parseContent(content);
+  if (parsed === null) {
+    return typeof content === 'string' ? content : JSON.stringify(content, null, 2);
+  }
+  return JSON.stringify(parsed, null, 2);
+}
+
+function formatNumber(value) {
+  if (value === null || value === undefined) return '—';
+  try {
+    return new Intl.NumberFormat().format(value);
+  } catch (error) {
+    return String(value);
+  }
+}
+
+function VideoRankings({ data }) {
+  const rows = Array.isArray(data) ? data : [];
+  if (rows.length === 0) {
+    return <p style={{ color: 'var(--color-text-subtle)' }}>No ranked videos captured for this run.</p>;
+  }
+  return rows.map((group) => {
+    const videoRows = Array.isArray(group.videos) ? group.videos : [];
+    const maxScore =
+      videoRows.length > 0
+        ? Math.max(
+            ...videoRows
+              .map((v) => (typeof v.score === 'number' ? v.score : 0))
+              .filter((val) => Number.isFinite(val)),
+          )
+        : null;
+    return (
+      <div key={group.skill || 'general'} style={{ marginBottom: '1.25rem' }}>
+        <h5 style={{ margin: '0 0 0.5rem 0' }}>{group.skill || 'General skill'}</h5>
+        <div className="video-table-wrapper">
+          <table className="video-table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Score</th>
+                <th>Title</th>
+                <th>Channel</th>
+                <th>Views</th>
+                <th>Summary</th>
+                <th>Tip</th>
+              </tr>
+            </thead>
+            <tbody>
+              {videoRows.map((video) => {
+                const rawScore = typeof video.score === 'number' ? video.score : null;
+                const normalized =
+                  rawScore !== null && maxScore && maxScore > 0 ? (rawScore / maxScore) * 100 : null;
+                const summary =
+                  (video.analysis && video.analysis.summary) ||
+                  video.summary ||
+                  (video.analysis && Array.isArray(video.analysis.keyPoints)
+                    ? video.analysis.keyPoints.join(', ')
+                    : null);
+                return (
+                  <tr key={`${group.skill}-${video.videoId}-${video.rank}`}>
+                    <td>{video.rank ?? '—'}</td>
+                    <td>{normalized !== null ? normalized.toFixed(1) : '—'}</td>
+                    <td>
+                      {video.url ? (
+                        <a href={video.url} target="_blank" rel="noreferrer">
+                          {video.title || video.videoId || 'Untitled'}
+                        </a>
+                      ) : (
+                        video.title || video.videoId || 'Untitled'
+                      )}
+                    </td>
+                    <td>{video.channelTitle || '—'}</td>
+                    <td>{formatNumber(video.viewCount)}</td>
+                    <td style={{ maxWidth: '360px' }}>
+                      {summary ? summary : <span className="tag muted">Not received</span>}
+                    </td>
+                    <td style={{ maxWidth: '360px' }}>{video.personalizationTip || '—'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    );
+  });
 }
 
 export default function ArtifactViewer({ summary, detail, artifacts, isLoading }) {
@@ -171,10 +275,16 @@ export default function ArtifactViewer({ summary, detail, artifacts, isLoading }
                   </div>
                   <div
                     id={contentId}
-                    className={`artifact-content expandable-content${isExpanded ? ' expanded' : ''}`}
+                    className={`artifact-content expandable-content${
+                      isExpanded ? ' expanded' : ''
+                    }${artifact.artifactType === 'video_rankings' ? ' video-artifact' : ''}`}
                     aria-hidden={!isExpanded}
                   >
-                    <pre>{renderJson(artifact.content)}</pre>
+                    {artifact.artifactType === 'video_rankings' ? (
+                      <VideoRankings data={parseContent(artifact.content)} />
+                    ) : (
+                      <pre>{renderJson(artifact.content)}</pre>
+                    )}
                   </div>
                   <button
                     type="button"

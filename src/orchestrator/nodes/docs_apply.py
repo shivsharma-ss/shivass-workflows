@@ -7,6 +7,7 @@ import logging
 from app.schemas import ImprovementPlan
 from orchestrator.exceptions import ApprovalPendingError
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def build_node(deps: NodeDeps):
         await deps.storage.save_artifact(state["analysis_id"], "applied_improvements", text)
         return state
 
-    return docs_apply
+    return instrument_node("docs_apply", deps, docs_apply)
 
 
 def _format_improvements(improvements: ImprovementPlan) -> str:

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 from typing import Any, Optional
 
 import pytest
@@ -145,4 +146,114 @@ async def test_gmail_service_falls_back_to_smtp(monkeypatch, tmp_path):
     )
     result = await service.send_html("user@example.com", "Subject", "<p>Body</p>")
     assert sent_messages
+    assert result["transport"] == "smtp"
+
+
+@pytest.mark.asyncio
+async def test_gmail_service_refreshes_expired_tokens(monkeypatch, tmp_path):
+    """Expired OAuth tokens should be refreshed and re-persisted."""
+
+    expiry = (datetime.now(timezone.utc) - timedelta(minutes=5)).isoformat()
+    token_store = InMemoryTokenStore(
+        {
+            "token": "old-token",
+            "refresh_token": "refresh-token",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "client_id": "client",
+            "client_secret": "secret",
+            "scopes": ["scope"],
+            "expiry": expiry,
+        }
+    )
+
+    class RefreshingCredentials:
+        def __init__(self, **kwargs):
+            self.token = kwargs["token"]
+            self.refresh_token = kwargs["refresh_token"]
+            self.token_uri = kwargs["token_uri"]
+            self.client_id = kwargs["client_id"]
+            self.client_secret = kwargs["client_secret"]
+            self.scopes = kwargs["scopes"]
+            self.expiry = datetime.now(timezone.utc) - timedelta(minutes=1)
+            self.expired = True
+
+        def refresh(self, request):
+            self.token = "refreshed-token"
+            self.expiry = datetime.now(timezone.utc) + timedelta(hours=1)
+            self.expired = False
+
+    async def immediate_to_thread(func, *args, **kwargs):  # type: ignore[override]
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr("services.gmail.user_credentials.Credentials", RefreshingCredentials)
+    monkeypatch.setattr("services.gmail.asyncio", SimpleNamespace(to_thread=immediate_to_thread))
+
+    service = GmailService(
+        templates_path=str(tmp_path),
+        sender="sender@example.com",
+        subject_override=None,
+        oauth_token_store=token_store,
+        smtp_server=None,
+        smtp_port=587,
+        smtp_username=None,
+        smtp_password=None,
+    )
+
+    creds = await service._load_user_credentials()
+    assert creds.token == "refreshed-token"
+    assert token_store.saved is not None
+    assert token_store.saved["token"] == "refreshed-token"
+
+
+@pytest.mark.asyncio
+async def test_gmail_service_handles_gmail_error_and_uses_smtp(monkeypatch, tmp_path):
+    """403/401 errors from Gmail should be logged and trigger SMTP fallback."""
+
+    token_store = InMemoryTokenStore({"token": "live", "refresh_token": "refresh"})
+
+    async def immediate_to_thread(func, *args, **kwargs):  # type: ignore[override]
+        return func(*args, **kwargs)
+
+    async def fake_resolve_credentials(self):  # type: ignore[override]
+        return {"access_token": "abc"}
+
+    def explode(*args, **kwargs):
+        raise RuntimeError("403")
+
+    class DummySMTP:
+        def __init__(self, *_, **__):
+            pass
+
+        def starttls(self):
+            return None
+
+        def login(self, *_):
+            return None
+
+        def sendmail(self, *_):
+            return None
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+    monkeypatch.setattr("services.gmail.asyncio", SimpleNamespace(to_thread=immediate_to_thread))
+    monkeypatch.setattr(GmailService, "_resolve_credentials", fake_resolve_credentials)
+    monkeypatch.setattr(GmailService, "_send_raw_message", explode)
+    monkeypatch.setattr("services.gmail.smtplib.SMTP", DummySMTP)
+
+    service = GmailService(
+        templates_path=str(tmp_path),
+        sender="sender@example.com",
+        subject_override=None,
+        oauth_token_store=token_store,
+        smtp_server="smtp.example.com",
+        smtp_port=587,
+        smtp_username="smtp",
+        smtp_password="pass",
+    )
+
+    result = await service.send_html("user@example.com", "Subject", "<p>Body</p>")
     assert result["transport"] == "smtp"

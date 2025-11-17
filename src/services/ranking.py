@@ -1,10 +1,10 @@
 """Ranking heuristics for tutorial selection."""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from datetime import datetime, timezone
 import math
 import re
+from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Mapping, MutableMapping, Sequence
 
 from services.channel_defaults import default_channel_boost_map
@@ -25,6 +25,8 @@ SEMANTIC_KEYWORDS = [
     "hands-on",
     "beginner",
     "for beginners",
+    "portfolio",
+    "portfolio project",
 ]
 DEFAULT_CHANNEL_BOOSTS = default_channel_boost_map()
 LN2 = math.log(2)
@@ -60,6 +62,22 @@ class RankingService:
     ) -> list[YouTubeVideo]:
         """Return highest-scoring videos using the custom ranking."""
 
+        return [item.video for item in self.ranked_videos(
+            videos,
+            limit=limit,
+            skill_name=skill_name,
+            user_channel_boosts=user_channel_boosts,
+        )]
+
+    def ranked_videos(
+        self,
+        videos: Sequence[YouTubeVideo],
+        limit: int = 3,
+        skill_name: str | None = None,
+        user_channel_boosts: Mapping[str, float] | None = None,
+    ) -> list[RankedVideo]:
+        """Return ranked video metadata including heuristic scores."""
+
         boosts: Mapping[str, float] | None = None
         if user_channel_boosts is not None:
             boosts = self._sanitize_boosts(user_channel_boosts)
@@ -70,7 +88,7 @@ class RankingService:
                 continue
             ranked.append(RankedVideo(video=video, score=score))
         ranked.sort(key=lambda item: item.score, reverse=True)
-        return [item.video for item in ranked[:limit]]
+        return ranked[:limit]
 
     def score(
         self,

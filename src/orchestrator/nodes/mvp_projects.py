@@ -5,6 +5,7 @@ import logging
 from typing import List
 
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -22,20 +23,29 @@ def build_node(deps: NodeDeps):
             missing = analysis_model.hardSkills[:5]
         missing = missing[:8]
 
+        def _get(value, field):
+            if value is None:
+                return None
+            if isinstance(value, dict):
+                return value.get(field)
+            return getattr(value, field, None)
+
         suggestions = state.get("project_suggestions", [])
         tutorial_catalog: List[dict[str, str]] = []
-        for suggestion in suggestions:
-            skill_name = getattr(suggestion, "skill", None) or suggestion.get("skill")
-            projects = getattr(suggestion, "projects", None) or suggestion.get("projects") or []
-            for project in projects[:3]:
-                title = getattr(project, "tutorialTitle", None) or project.get("tutorialTitle")
-                url = getattr(project, "tutorialUrl", None) or project.get("tutorialUrl")
-                tip = getattr(project, "personalizationTip", None) or project.get("personalizationTip")
+        for suggestion in suggestions or []:
+            skill_name = _get(suggestion, "skill") or "general"
+            projects = _get(suggestion, "projects") or []
+            for project in list(projects)[:3]:
+                title = _get(project, "tutorialTitle")
+                url = _get(project, "tutorialUrl")
+                tip = _get(project, "personalizationTip")
+                if not url and not title:
+                    continue
                 tutorial_catalog.append(
                     {
                         "skill": skill_name,
                         "tutorialTitle": title,
-                        "tutorialUrl": str(url),
+                        "tutorialUrl": str(url) if url else "",
                         "personalizationTip": tip,
                     }
                 )
@@ -66,4 +76,4 @@ def build_node(deps: NodeDeps):
             )
         return state
 
-    return generate_mvp
+    return instrument_node("mvp_projects", deps, generate_mvp)

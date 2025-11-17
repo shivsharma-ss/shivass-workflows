@@ -33,6 +33,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "redis>=5.0",
     "itsdangerous>=2.2",
+    "alembic>=1.13",
     "google-auth-oauthlib>=1.2"
 ]
 
@@ -56,4 +57,16 @@ packages = ["src/app", "src/orchestrator", "src/services"]
 minversion = "8.0"
 addopts = "-q"
 testpaths = ["src/tests"]
-asyncio_mode = "auto"
+
+[tool.coverage.run]
+omit = [
+    "src/app/main.py",
+    "src/orchestrator/graph.py",
+    "src/services/container.py",
+    "src/services/gemini.py",
+    "src/services/google_docs.py",
+    "src/services/google_drive.py",
+    "src/services/llm.py",
+    "src/services/secrets.py",
+    "src/services/youtube.py",
+]

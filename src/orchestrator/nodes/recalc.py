@@ -5,6 +5,7 @@ import logging
 
 from app.schemas import AnalysisStatus
 from orchestrator.state import GraphState, NodeDeps
+from orchestrator.utils import instrument_node
 
 logger = logging.getLogger(__name__)
 
@@ -43,4 +44,4 @@ def build_node(deps: NodeDeps):
         logger.info("analysis %s completed; final score=%s", state["analysis_id"], new_score.overallScore)
         return state
 
-    return recalc
+    return instrument_node("recalc", deps, recalc)

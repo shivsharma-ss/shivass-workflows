@@ -75,6 +75,7 @@ class AppContainer:
             self.gemini = GeminiService(
                 api_key=settings.gemini_api_key,
                 cache=self.cache,
+                storage=self.storage,
             )
         node_deps = NodeDeps(
             settings=settings,

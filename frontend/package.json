@@ -9,7 +9,8 @@
     "lint": "eslint --max-warnings=0 .",
     "format": "prettier --write .",
     "type-check": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run --coverage",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "next": "^14.2.33",
@@ -17,17 +18,20 @@
     "react-dom": "18.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.49.0",
     "@testing-library/jest-dom": "^6.0.0",
     "@testing-library/react": "^14.0.0",
     "@testing-library/user-event": "^14.4.3",
-    "@types/node": "20.5.6",
+    "@types/node": "20.19.1",
     "@types/react": "18.2.4",
     "@types/react-dom": "18.2.1",
+    "@vitejs/plugin-react": "^5.1.1",
+    "@vitest/coverage-v8": "^4.0.8",
+    "@vitest/eslint-plugin": "^1.4.2",
     "eslint": "^9.39.1",
     "eslint-config-next": "^16.0.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.0.0",
-    "@vitest/eslint-plugin": "^1.4.2",
     "jsdom": "^27.1.0",
     "prettier": "^3.0.0",
     "typescript": "^5.4.8",

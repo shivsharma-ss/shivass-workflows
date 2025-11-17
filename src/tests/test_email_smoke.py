@@ -9,17 +9,18 @@ from app.config import get_settings
 from services.container import AppContainer
 
 
+EMAIL_SMOKE_ENABLED = bool(os.environ.get("EMAIL_SMOKE_RECIPIENT"))
+
+
 @pytest.mark.asyncio
 @pytest.mark.skipif(
-    not get_settings().email_smoke_recipient,
+    not EMAIL_SMOKE_ENABLED,
     reason="Set EMAIL_SMOKE_RECIPIENT in .env to run the real email smoke test",
 )
 async def test_send_hello_world_email():
     """Sends a Hello World email using the configured Gmail service."""
 
     settings = get_settings()
-    if not settings.email_smoke_recipient:
-        pytest.skip("EMAIL_SMOKE_RECIPIENT not set in settings")
     container = AppContainer(settings)
     await container.storage.initialize()
     html = "<p>Hello World!</p>"
